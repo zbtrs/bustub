@@ -28,15 +28,15 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) -> bool {
   //如果找到了完全相同的，就返回false
   for (int i = 0; i < static_cast<int>(size_); ++i) {
-    if (IsReadable(i) && cmp(key,array_->first) && value == array_->second) {
+    if (IsReadable(i) && cmp(key,array_[i].first) == 0 && value == array_[i].second) {
       return false;
     }
   }
   if (size_ == capacity_) {
     EnlargeBucket();
   }
-  array_[size_].first = key;
-  array_[size_].second = value;
+  std::pair<KeyType,ValueType> temp = std::make_pair(key,value);
+  array_[size_] = temp;
   SetOccupied(size_);
   SetReadable(size_);
   ++size_;
@@ -47,7 +47,7 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator cmp) -> bool {
   int pos = -1;
   for (int i = 0; i < static_cast<int>(size_); ++i) {
-    if (IsReadable(i) && cmp(key,array_->first) && value == array_->second) {
+    if (IsReadable(i) && cmp(key,array_[i].first) == 0 && value == array_[i].second) {
       pos = i;
       break;
     }

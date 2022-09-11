@@ -145,7 +145,7 @@ class HashTableBucketPage {
   // Flexible array member for page data.
   MappingType *array_;
   size_t size_{0};
-  size_t capacity_ = 1;
+  size_t capacity_{0};
 
   void EnlargeBucket();
 
