@@ -28,6 +28,7 @@ namespace bustub {
  * BufferPoolManager reads disk pages to and from its internal buffer pool.
  */
 class BufferPoolManagerInstance : public BufferPoolManager {
+  friend class ParallelBufferPoolManager;
  public:
   /**
    * Creates a new BufferPoolManagerInstance.
@@ -121,6 +122,8 @@ class BufferPoolManagerInstance : public BufferPoolManager {
    */
   void ValidatePageId(page_id_t page_id) const;
 
+  bool findFrame(frame_id_t *frame_id);
+
   /** Number of pages in the buffer pool. */
   const size_t pool_size_;
   /** How many instances are in the parallel BPM (if present, otherwise just 1 BPI) */
@@ -138,11 +141,15 @@ class BufferPoolManagerInstance : public BufferPoolManager {
   LogManager *log_manager_ __attribute__((__unused__));
   /** Page table for keeping track of buffer pool pages. */
   std::unordered_map<page_id_t, frame_id_t> page_table_;
+  std::unordered_map<frame_id_t, page_id_t> reverse_page_table_;
   /** Replacer to find unpinned pages for replacement. */
   Replacer *replacer_;
   /** List of free pages. */
   std::list<frame_id_t> free_list_;
   /** This latch protects shared data structures. We recommend updating this comment to describe what it protects. */
   std::mutex latch_;
+
+  size_t pinned_num_;
+
 };
 }  // namespace bustub

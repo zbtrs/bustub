@@ -13,6 +13,7 @@
 #pragma once
 
 #include "buffer/buffer_pool_manager.h"
+#include "buffer_pool_manager_instance.h"
 #include "recovery/log_manager.h"
 #include "storage/disk/disk_manager.h"
 #include "storage/page/page.h"
@@ -44,7 +45,7 @@ class ParallelBufferPoolManager : public BufferPoolManager {
    * @param page_id id of page
    * @return pointer to the BufferPoolManager responsible for handling given page id
    */
-  auto GetBufferPoolManager(page_id_t page_id) -> BufferPoolManager *;
+  auto GetBufferPoolManager(page_id_t page_id) -> BufferPoolManagerInstance *;
 
   /**
    * Fetch the requested page from the buffer pool.
@@ -86,5 +87,15 @@ class ParallelBufferPoolManager : public BufferPoolManager {
    * Flushes all the pages in the buffer pool to disk.
    */
   void FlushAllPgsImp() override;
+
+  BufferPoolManagerInstance** buffer_pools_;
+  uint32_t num_instances_;
+  size_t pool_size_;
+  uint32_t start_index_;
+  DiskManager *disk_manager_;
+  LogManager *log_manager_;
+  bool *allocated_;
+  std::unordered_map<page_id_t,int> buffer_pool_table_;
+  std::mutex latch_;
 };
 }  // namespace bustub

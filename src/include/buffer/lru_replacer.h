@@ -13,13 +13,27 @@
 #pragma once
 
 #include <list>
+#include <map>
 #include <mutex>  // NOLINT
+#include <unordered_map>
 #include <vector>
 
 #include "buffer/replacer.h"
 #include "common/config.h"
 
 namespace bustub {
+
+struct ListNode {
+  frame_id_t frame_id_{-1};
+  ListNode *prev_{nullptr};
+  ListNode *next_{nullptr};
+  explicit ListNode(frame_id_t frame_id) : frame_id_(frame_id) {}
+  ListNode() = default;
+  void Remove() {
+    prev_->next_ = next_;
+    next_->prev_ = prev_;
+  }
+};
 
 /**
  * LRUReplacer implements the Least Recently Used replacement policy.
@@ -46,7 +60,14 @@ class LRUReplacer : public Replacer {
   auto Size() -> size_t override;
 
  private:
-  // TODO(student): implement me!
+  void AddTail(ListNode *new_node);
+
+  size_t size_;
+  size_t capacity_;
+  std::unordered_map<frame_id_t, ListNode *> hash_map_{};
+  ListNode *head_;
+  ListNode *tail_;
+  std::mutex mtx_;
 };
 
 }  // namespace bustub
