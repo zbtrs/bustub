@@ -37,11 +37,26 @@ array_:用来存key_value pairs
       reinterpret_cast<HashTableDirectoryPage *>(bpm->NewPage(&directory_page_id, nullptr)->GetData());
 ```
 
-
+```c++
+  auto bucket_page = reinterpret_cast<HashTableBucketPage<int, int, IntComparator> *>(
+      bpm->NewPage(&bucket_page_id, nullptr)->GetData());
+```
 
 Page作为最低层，可以先行实现
 
 
 
 **研究page类发现：几乎所有的对page的操作都有对应的封装函数，可以在这些封装函数中加上诸如错误处理之类的一些操作**
+
+
+
+page中实现的函数只需要处理好管理page本身，（相当于只需要做好保管内存上的信息）。至于如何调用，调用的策略，都交给上层的hash_table来处理
+
+
+
+这里bucket page要实现自增长，一开始桶只能容纳一堆key-value，一旦在一个位置放了一个key-value，那么就认为这个位置是occupied了，以后就算delete了也是occupied。如果一个位置的key-value被删除了，那么这个位置就是不可读的。
+
+在一个hash table的Page中再来用一个map感觉是一个非常蠢的行为，查找的话感觉只能线性查找？以后再来优化
+
+
 

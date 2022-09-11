@@ -143,7 +143,12 @@ class HashTableBucketPage {
   // 0 if tombstone/brand new (never occupied), 1 otherwise.
   char readable_[(BUCKET_ARRAY_SIZE - 1) / 8 + 1];
   // Flexible array member for page data.
-  MappingType array_[1];
+  MappingType *array_;
+  size_t size_{0};
+  size_t capacity_ = 1;
+
+  void EnlargeBucket();
+
 };
 
 }  // namespace bustub
