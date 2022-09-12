@@ -117,6 +117,8 @@ class HashTableBucketPage {
    */
   void SetReadable(uint32_t bucket_idx);
 
+  void RemoveReadable(uint32_t bucket_idx);
+
   /**
    * @return the number of readable elements, i.e. current size
    */

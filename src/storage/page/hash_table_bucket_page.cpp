@@ -55,7 +55,7 @@ auto HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator 
   if (pos == -1) {
     return false;
   }
-  readable_[pos] = false;
+  RemoveReadable(pos);
   return true;
 }
 
@@ -77,12 +77,21 @@ auto HASH_TABLE_BUCKET_TYPE::IsOccupied(uint32_t bucket_idx) const -> bool {
   if (bucket_idx >= size_) {
     return false;
   }
-  return occupied_[bucket_idx];
+  char temp = occupied_[bucket_idx / 8];
+  auto num = (temp >> (bucket_idx - (bucket_idx / 8) * 8)) & 1;
+  return num != 0;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::SetOccupied(uint32_t bucket_idx) {
-  occupied_[bucket_idx] = true;
+  int t = (1 << (bucket_idx - (bucket_idx / 8) * 8));
+  occupied_[bucket_idx / 8] |= t;
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void HASH_TABLE_BUCKET_TYPE::RemoveReadable(uint32_t bucket_idx) {
+  int t = (1 << (bucket_idx - (bucket_idx / 8) * 8));
+  readable_[bucket_idx / 8] ^= t;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -90,12 +99,15 @@ auto HASH_TABLE_BUCKET_TYPE::IsReadable(uint32_t bucket_idx) const -> bool {
   if (bucket_idx >= size_) {
     return false;
   }
-  return readable_[bucket_idx];
+  char temp = readable_[bucket_idx / 8];
+  auto num = (temp >> (bucket_idx - (bucket_idx / 8) * 8)) & 1;
+  return num != 0;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::SetReadable(uint32_t bucket_idx) {
-  readable_[bucket_idx] = true;
+  int t = (1 << (bucket_idx - (bucket_idx / 8) * 8));
+  readable_[bucket_idx / 8] |= t;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
