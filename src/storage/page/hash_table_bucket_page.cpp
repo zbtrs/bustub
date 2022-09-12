@@ -127,7 +127,7 @@ auto HASH_TABLE_BUCKET_TYPE::IsEmpty() -> bool {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::EnlargeBucket() {
-  size_t newcapacity = capacity_ != 0u ? capacity_ * 2 : 1;
+  size_t newcapacity = capacity_ != 0U ? capacity_ * 2 : 1;
   auto *pointer = new MappingType[newcapacity];
   for (size_t i = 0; i < capacity_; ++i) {
     pointer[i] = array_[i];
