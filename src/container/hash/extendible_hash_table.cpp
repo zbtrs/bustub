@@ -26,7 +26,9 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 HASH_TABLE_TYPE::ExtendibleHashTable(const std::string &name, BufferPoolManager *buffer_pool_manager,
                                      const KeyComparator &comparator, HashFunction<KeyType> hash_fn)
     : buffer_pool_manager_(buffer_pool_manager), comparator_(comparator), hash_fn_(std::move(hash_fn)) {
-  //  implement me!
+  auto directory_page =
+      reinterpret_cast<HashTableDirectoryPage *>(buffer_pool_manager_->NewPage(&directory_page_id_, nullptr)->GetData());
+  directory_page -> IncrGlobalDepth();
 }
 
 /*****************************************************************************
@@ -46,22 +48,31 @@ auto HASH_TABLE_TYPE::Hash(KeyType key) -> uint32_t {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 inline auto HASH_TABLE_TYPE::KeyToDirectoryIndex(KeyType key, HashTableDirectoryPage *dir_page) -> uint32_t {
-  return 0;
+  auto global_mask = dir_page -> GetGlobalDepthMask();
+  auto hash_key = (Hash(key) & global_mask);
+
+  return hash_key;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 inline auto HASH_TABLE_TYPE::KeyToPageId(KeyType key, HashTableDirectoryPage *dir_page) -> uint32_t {
-  return 0;
+  auto directory_index = KeyToDirectoryIndex(key,dir_page);
+
+  return dir_page ->GetBucketPageId(directory_index);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::FetchDirectoryPage() -> HashTableDirectoryPage * {
-  return nullptr;
+  auto directory_page = reinterpret_cast<HashTableDirectoryPage *>(buffer_pool_manager_ ->FetchPage(directory_page_id_));
+
+  return directory_page;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::FetchBucketPage(page_id_t bucket_page_id) -> HASH_TABLE_BUCKET_TYPE * {
-  return nullptr;
+  auto bucket_page = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(buffer_pool_manager_ ->FetchPage(bucket_page_id));
+
+  return bucket_page;
 }
 
 /*****************************************************************************

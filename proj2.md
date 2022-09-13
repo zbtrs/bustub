@@ -60,3 +60,63 @@ page中实现的函数只需要处理好管理page本身，（相当于只需要
 
 
 
+## Extendible Hash Table
+
+### 成员变量
+
+directory_page_id_: 类型为page_id_t，在初始化的时候得知
+
+buffer_pool_manager_: BufferPoolManager*，初始化的时候已经拿到了，不需要自行处理，注意这是一个指针类型
+
+comparator_: 是一个KeyComparator，也不需要经过特殊处理，是一个function类
+
+
+
+### 构造函数
+
+只需要处理directory_page_id_: 
+
+```c++
+  page_id_t directory_page_id = INVALID_PAGE_ID;
+  auto directory_page =
+      reinterpret_cast<HashTableDirectoryPage *>(bpm->NewPage(&directory_page_id, nullptr)->GetData());
+```
+
+```c++
+  directory_page->IncrGlobalDepth();
+```
+
+### 析构函数
+
+可能需要将一些page给Unpin掉。(bushi
+
+
+
+### helper function
+
+#### Hash(KeyType key) -> uint32_t
+
+直接把key传进去，返回一个32位的值，注意不能直接用这个hash值，要跟globaldepth表示的二进制数and一下。
+
+无需我们自己实现。
+
+#### KeyToPageId
+
+传入两个参数key和*dir_page，在外层先把Hash and后的结果算出来，然后用dir_page里面的GetBucketPageId来得到page_id
+
+#### FetchDirectoryPage
+
+根据成员变量中的directory_page_id来从bufferpool中取得这个directory page
+
+要做类型转换
+
+一旦调用了这个函数，必须要在后面加上Unpin操作
+
+#### FetchBucketPage
+
+和上面差不多，要类型转换和Unpin
+
+
+
+
+
