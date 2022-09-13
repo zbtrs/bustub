@@ -25,6 +25,28 @@ auto HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
+void HashTableBucketPage<KeyType, ValueType, KeyComparator>::GetAllPairs(
+    std::vector<std::pair<KeyType, ValueType>> *vec) {
+  for (int i = 0; i < static_cast<int>(size_); ++i) {
+    if (IsReadable(i)) {
+      vec ->push_back(array_[i]);
+    }
+  }
+}
+
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+auto HashTableBucketPage<KeyType, ValueType, KeyComparator>::FindElement(KeyType key, ValueType value,
+                                                                         KeyComparator cmp) -> bool {
+  for (int i = 0; i < static_cast<int>(size_); ++i) {
+    if (IsReadable(i) && cmp(key,array_[i].first) == 0 && value == array_[i].second) {
+      return true;
+    }
+  }
+  return false;
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) -> bool {
   //如果找到了完全相同的，就返回false
   for (int i = 0; i < static_cast<int>(size_); ++i) {
@@ -157,6 +179,10 @@ void HASH_TABLE_BUCKET_TYPE::PrintBucket() {
   }
 
   LOG_INFO("Bucket Capacity: %lu, Size: %u, Taken: %u, Free: %u", BUCKET_ARRAY_SIZE, size, taken, free);
+}
+template <typename KeyType, typename ValueType, typename KeyComparator>
+size_t HashTableBucketPage<KeyType, ValueType, KeyComparator>::GetSize() {
+  return size_;
 }
 
 // DO NOT REMOVE ANYTHING BELOW THIS LINE

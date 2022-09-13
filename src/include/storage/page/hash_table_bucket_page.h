@@ -64,6 +64,8 @@ class HashTableBucketPage {
    */
   auto Remove(KeyType key, ValueType value, KeyComparator cmp) -> bool;
 
+  auto FindElement(KeyType key, ValueType value,KeyComparator cmp) -> bool;
+
   /**
    * Gets the key at an index in the bucket.
    *
@@ -138,6 +140,10 @@ class HashTableBucketPage {
    * Prints the bucket's occupancy information
    */
   void PrintBucket();
+
+  void GetAllPairs(std::vector<MappingType> *vec);
+
+  size_t GetSize();
 
  private:
   //  For more on BUCKET_ARRAY_SIZE see storage/page/hash_table_page_defs.h

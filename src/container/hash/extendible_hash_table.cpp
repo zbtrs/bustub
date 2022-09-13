@@ -96,7 +96,35 @@ auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
-  return false;
+  auto directory_page = FetchDirectoryPage();
+  auto bucket_page_id = KeyToPageId(key,directory_page);
+  auto bucket_page = FetchBucketPage(bucket_page_id);
+
+  //如果要插入的bucketpage中已经有完全相同的key-value对了，不插入
+  if (bucket_page->FindElement(key,value,comparator_)) {
+    buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
+    buffer_pool_manager_ ->UnpinPage(bucket_page_id,false);
+    return false;
+  }
+  auto directory_index = KeyToDirectoryIndex(key,directory_page);
+  auto limit_size = (1 << ((directory_page ->GetLocalDepth(directory_index)) - 1));
+  if (limit_size == static_cast<int>(bucket_page -> GetSize())) {
+    //如果满了，要进行分裂
+    auto last_local_depth = directory_page ->GetLocalDepth(directory_index);
+    auto new_bucket_page_id =
+        SplitBucketPage(bucket_page, directory_page, bucket_page_id, KeyToDirectoryIndex(key, directory_page));
+    if (directory_page ->GetGlobalDepth() == last_local_depth) {
+      directory_page ->IncrGlobalDepth();
+    }
+    UpdateDirectoryPage(directory_page,bucket_page_id,new_bucket_page_id);
+    buffer_pool_manager_ ->UnpinPage(directory_page_id_,true);
+    buffer_pool_manager_ ->UnpinPage(bucket_page_id,true);
+  } else {
+    bucket_page ->Insert(key,value,comparator_);
+    buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
+    buffer_pool_manager_ ->UnpinPage(bucket_page_id,true);
+  }
+  return true;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -141,6 +169,36 @@ void HASH_TABLE_TYPE::VerifyIntegrity() {
   dir_page->VerifyIntegrity();
   assert(buffer_pool_manager_->UnpinPage(directory_page_id_, false, nullptr));
   table_latch_.RUnlock();
+}
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::UpdateDirectoryPage(HashTableDirectoryPage *directory_page,
+                                                                                 page_id_t id0, page_id_t id1) {
+  //TODO
+}
+template <typename KeyType, typename ValueType, typename KeyComparator>
+auto ExtendibleHashTable<KeyType, ValueType, KeyComparator>::SplitBucketPage(
+    HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page, HashTableDirectoryPage *directory_page,
+    page_id_t bucket_page_id, uint32_t bucket_index) -> page_id_t {
+  //TODO
+  directory_page ->IncrLocalDepth(bucket_index);
+  auto local_depth = directory_page ->GetLocalDepth(bucket_index);
+  page_id_t new_bucket_page_id = INVALID_PAGE_ID;
+  auto new_bucket_page = reinterpret_cast<HashTableBucketPage<int, int, IntComparator> *>(
+      buffer_pool_manager_->NewPage(&new_bucket_page_id, nullptr)->GetData());
+  std::vector<MappingType> elements;
+  bucket_page ->GetAllPairs(&elements);
+  bucket_page ->clear();
+  for (auto it : elements) {
+    auto hash_val = (Hash(it.first) & directory_page -> GetGlobalDepth());
+    auto check_bit = ((hash_val >> (local_depth - 1)) & 1);
+    if (check_bit) {
+      new_bucket_page ->Insert(it.first,it.second,comparator_);
+    } else {
+      bucket_page ->Insert(it.first,it.second,comparator_);
+    }
+  }
+
+  return new_bucket_page_id;
 }
 
 /*****************************************************************************

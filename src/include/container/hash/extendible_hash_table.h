@@ -161,7 +161,8 @@ class ExtendibleHashTable {
    */
   void Merge(Transaction *transaction, const KeyType &key, const ValueType &value);
 
-  auto SplitBucketPage(HashTableBucketPage<KeyType,ValueType,KeyComparator>* bucketPage,HashTableDirectoryPage *directoryPage,page_id_t bucketPageId) -> page_id_t;
+  auto SplitBucketPage(HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucketPage,
+                       HashTableDirectoryPage *directoryPage, page_id_t bucketPageId, uint32_t bucket_index) -> page_id_t;
 
   // member variables
   page_id_t directory_page_id_;
@@ -171,6 +172,7 @@ class ExtendibleHashTable {
   // Readers includes inserts and removes, writers are splits and merges
   ReaderWriterLatch table_latch_;
   HashFunction<KeyType> hash_fn_;
+  void UpdateDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1);
 };
 
 }  // namespace bustub
