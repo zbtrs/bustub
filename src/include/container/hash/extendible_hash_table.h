@@ -161,6 +161,8 @@ class ExtendibleHashTable {
    */
   void Merge(Transaction *transaction, const KeyType &key, const ValueType &value);
 
+  auto SplitBucketPage(HashTableBucketPage<KeyType,ValueType,KeyComparator>* bucketPage,HashTableDirectoryPage *directoryPage,page_id_t bucketPageId) -> page_id_t;
+
   // member variables
   page_id_t directory_page_id_;
   BufferPoolManager *buffer_pool_manager_;

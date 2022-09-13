@@ -29,6 +29,14 @@ HASH_TABLE_TYPE::ExtendibleHashTable(const std::string &name, BufferPoolManager 
   auto directory_page =
       reinterpret_cast<HashTableDirectoryPage *>(buffer_pool_manager_->NewPage(&directory_page_id_, nullptr)->GetData());
   directory_page -> IncrGlobalDepth();
+  page_id_t bucket_page_id_1 = INVALID_PAGE_ID;
+  page_id_t bucket_page_id_2 = INVALID_PAGE_ID;
+  buffer_pool_manager_ ->NewPage(&bucket_page_id_1, nullptr);
+  buffer_pool_manager_ ->NewPage(&bucket_page_id_2, nullptr);
+  directory_page->SetLocalDepth(0, 1);
+  directory_page->SetLocalDepth(1, 1);
+  directory_page->SetBucketPageId(0, bucket_page_id_1);
+  directory_page->SetBucketPageId(1, bucket_page_id_2);
 }
 
 /*****************************************************************************

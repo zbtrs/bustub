@@ -86,9 +86,11 @@ comparator_: 是一个KeyComparator，也不需要经过特殊处理，是一个
   directory_page->IncrGlobalDepth();
 ```
 
-### 析构函数
+update:
 
-可能需要将一些page给Unpin掉。(bushi
+因为一开始GlobalDepth设置为1，所以要新建两个BucketPage,一个对应0，一个对应1，并且把这两个BucketPage的localDepth设置为1，调用对应的helper function
+
+### 析构函数
 
 
 
@@ -115,6 +117,36 @@ comparator_: 是一个KeyComparator，也不需要经过特殊处理，是一个
 #### FetchBucketPage
 
 和上面差不多，要类型转换和Unpin
+
+#### SplitBucketPage --TODO
+
+1.传入的是一个指向BucketPage的指针和对应的local_depth，还有这个bucketpage的page_id，返回的是一个新分裂的page的pageid。(记得Unpin掉新分裂出来的page)
+
+2.++local_depth。新建一个page，设置新的page的local_depth。
+
+3.在bucket_page中写一个helper function，将所有位置上的key-value存到一个vector中。这个helper function接受一个指向vector的指针。
+
+4.bucket_page调用clear函数，然后将这些元素的key hash之后and上GLOBAL_MASK，分别insert到两个bucket page中。
+
+5.Unpin掉新创建的page。
+
+### Insert --TODO
+
+1.先FetchDirectoryPage(注意最后一定要Unpin!!!)
+
+2.调用KeyToPageid，然后调用FetchBucketPage，得到即将要插入的bucket page
+
+3.调用KeyToDirectoryIndex，看在directorypage中的这一页的localsize，和bucket page里面的size_对比一下看看是不是满了
+
+4.如果没有满，则直接调用bucket page的insert函数插入即可。这里如果返回了false就直接返回false。
+
+5.如果满了，并且localdepth < globaldepth，写一个帮助函数SplitBucketPage。
+
+6.如果满了，并且localdepth == globaldepth，++globaldepth，并且从0到GLOBAL_MASK遍历一遍directory，首先把指向要分裂的bucketpage的index给更新了，然后把新加入directory中的index也给更新一下。
+
+7.Unpin directorypage和bucketpage。
+
+
 
 
 
