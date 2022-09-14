@@ -132,7 +132,11 @@ update:
 
 #### UpdateDirectoryPage --TODO
 
+1.在调用这个函数的时候,globaldepth已经++了。
 
+2.先处理因为globaldepth++而多出来的目录位，方法是只看globaldepth-1位指向的位置。（这里可以直接把上半部分的指针复制下来）
+
+3.接下来进行调整：遍历整个directorypage，对于指向分裂的bucketpage的位置，看最高位是不是1，如果是1，就更改指向的对象。如果更改了指向的对象，就一定要更改localdepth！！！
 
 ### Insert --TODO
 
@@ -151,6 +155,12 @@ update:
 7.Unpin directorypage和bucketpage。
 
 
+
+一个问题：新创建的bucket的localdepth要设置，但是不是在bucket page里面设置，而是要在directory page里面设置？应该把这个任务交给updatedirectorypage函数
+
+
+
+update：如果没有更新globaldepth，那么更新directorypage就要用另外一种方法。
 
 
 

@@ -173,6 +173,7 @@ class ExtendibleHashTable {
   ReaderWriterLatch table_latch_;
   HashFunction<KeyType> hash_fn_;
   void UpdateDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1);
+  void UpdateLittleDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1, uint32_t i);
 };
 
 }  // namespace bustub
