@@ -21,7 +21,14 @@ namespace bustub {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result) -> bool {
-  return false;
+  bool flag = false;
+  for (int i = 0; i < static_cast<int>(size_); ++i) {
+    if (IsReadable(i) && cmp(key,array_[i].first) == 0) {
+      result ->push_back(array_[i].second);
+      flag = true;
+    }
+  }
+  return flag;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>

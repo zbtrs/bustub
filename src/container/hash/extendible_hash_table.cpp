@@ -88,7 +88,14 @@ auto HASH_TABLE_TYPE::FetchBucketPage(page_id_t bucket_page_id) -> HASH_TABLE_BU
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std::vector<ValueType> *result) -> bool {
-  return false;
+  auto directory_page = FetchDirectoryPage();
+  auto bucket_page_id = KeyToPageId(key,directory_page);
+  auto bucket_page = FetchBucketPage(bucket_page_id);
+  bool flag =  bucket_page ->GetValue(key,comparator_,result);
+  buffer_pool_manager_ ->UnpinPage(directory_page_id_, false);
+  buffer_pool_manager_ ->UnpinPage(bucket_page_id,false);
+
+  return flag;
 }
 
 /*****************************************************************************
