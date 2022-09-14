@@ -179,15 +179,14 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 auto ExtendibleHashTable<KeyType, ValueType, KeyComparator>::SplitBucketPage(
     HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page, HashTableDirectoryPage *directory_page,
     page_id_t bucket_page_id, uint32_t bucket_index) -> page_id_t {
-  //TODO
   directory_page ->IncrLocalDepth(bucket_index);
   auto local_depth = directory_page ->GetLocalDepth(bucket_index);
   page_id_t new_bucket_page_id = INVALID_PAGE_ID;
-  auto new_bucket_page = reinterpret_cast<HashTableBucketPage<int, int, IntComparator> *>(
+  auto new_bucket_page = reinterpret_cast<HashTableBucketPage<KeyType, ValueType, KeyComparator> *>(
       buffer_pool_manager_->NewPage(&new_bucket_page_id, nullptr)->GetData());
   std::vector<MappingType> elements;
   bucket_page ->GetAllPairs(&elements);
-  bucket_page ->clear();
+  bucket_page ->Clear();
   for (auto it : elements) {
     auto hash_val = (Hash(it.first) & directory_page -> GetGlobalDepth());
     auto check_bit = ((hash_val >> (local_depth - 1)) & 1);

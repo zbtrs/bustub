@@ -184,6 +184,14 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 size_t HashTableBucketPage<KeyType, ValueType, KeyComparator>::GetSize() {
   return size_;
 }
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void HashTableBucketPage<KeyType, ValueType, KeyComparator>::Clear() {
+  memset(occupied_,0,sizeof(occupied_));
+  memset(readable_,0,sizeof(readable_));
+  size_ = capacity_ = 0;
+  delete[] array_;
+  array_ = nullptr;
+}
 
 // DO NOT REMOVE ANYTHING BELOW THIS LINE
 template class HashTableBucketPage<int, int, IntComparator>;
