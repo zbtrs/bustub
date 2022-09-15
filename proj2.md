@@ -118,7 +118,7 @@ update:
 
 和上面差不多，要类型转换和Unpin
 
-#### SplitBucketPage --TODO
+#### SplitBucketPage 
 
 1.传入的是一个指向BucketPage的指针和对应的local_depth，还有这个bucketpage的page_id，返回的是一个新分裂的page的pageid。(记得Unpin掉新分裂出来的page)
 
@@ -130,7 +130,7 @@ update:
 
 5.Unpin掉新创建的page。
 
-#### UpdateDirectoryPage --TODO
+#### UpdateDirectoryPage 
 
 1.在调用这个函数的时候,globaldepth已经++了。
 
@@ -138,7 +138,7 @@ update:
 
 3.接下来进行调整：遍历整个directorypage，对于指向分裂的bucketpage的位置，看最高位是不是1，如果是1，就更改指向的对象。如果更改了指向的对象，就一定要更改localdepth！！！
 
-### Insert --TODO
+### Insert 
 
 1.先FetchDirectoryPage(注意最后一定要Unpin!!!)
 
@@ -161,6 +161,30 @@ update:
 
 
 update：如果没有更新globaldepth，那么更新directorypage就要用另外一种方法。
+
+
+
+## Merge --TODO
+
+传入directory_page的指针，两个要合并的桶的id0,id1，这里统一把id1合并到id0上面去。
+
+扫描directory_page，将指向id0和id1的localdepth--，然后更改指针。
+
+
+
+## Remove --TODO
+
+1.先FetchDirectoryPage,然后拿到BucketPage(类似Insert)
+
+2.如果在bucketpage中找不到key-value，Unpin然后返回。
+
+3.如果bucketpage删除了这个key-value后不为空，直接返回。
+
+4.如果变成空桶了，看另外一个兄弟桶是否为空。如果都为空，则调用Merge函数。要更新localdepth。
+
+5.看所有的local_depth是否都小于global_depth了，分两种情况更新directorypage。（这里是否要用一个数据结构来维护？）
+
+6.最后Unpin。
 
 
 

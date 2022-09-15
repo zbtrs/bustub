@@ -151,7 +151,7 @@ auto HASH_TABLE_BUCKET_TYPE::NumReadable() -> uint32_t {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::IsEmpty() -> bool {
-  return false;
+  return size_ == 0;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>

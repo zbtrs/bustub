@@ -146,14 +146,34 @@ auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
-  return false;
-}
+  auto directory_page = FetchDirectoryPage();
+  auto bucket_page_id = KeyToPageId(key,directory_page);
+  auto bucket_page = FetchBucketPage(bucket_page_id);
+  auto directory_index = KeyToDirectoryIndex(key,directory_page);
+  auto local_depth = directory_page ->GetLocalDepth(directory_index);
+  if (!bucket_page ->FindElement(key,value,comparator_)) {
+    buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
+    buffer_pool_manager_ ->UnpinPage(bucket_page_id,false);
+    return false;
+  }
+  bucket_page ->Remove(key,value,comparator_);
+  page_id_t another_bucket_page_id = 0;
+  if (!bucket_page ->IsEmpty() || !CheckMerge(directory_page, directory_index, local_depth, &another_bucket_page_id)) {
+    buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
+    buffer_pool_manager_ ->UnpinPage(bucket_page_id,true);
+    return true;
+  }
+  //try to merge
+  Merge(nullptr,directory_page,bucket_page_id,another_bucket_page_id);
+  if (CheckUpdateGlobalDepth(directory_page)) {
+    // update global depth
+    directory_page ->DecrGlobalDepth();
+  }
+  buffer_pool_manager_ ->UnpinPage(directory_page_id_,true);
+  buffer_pool_manager_ ->UnpinPage(bucket_page_id,true);
 
-/*****************************************************************************
- * MERGE
- *****************************************************************************/
-template <typename KeyType, typename ValueType, typename KeyComparator>
-void HASH_TABLE_TYPE::Merge(Transaction *transaction, const KeyType &key, const ValueType &value) {}
+  return true;
+}
 
 /*****************************************************************************
  * GETGLOBALDEPTH - DO NOT TOUCH
@@ -217,6 +237,7 @@ void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::UpdateDirectoryPage
     }
   }
 }
+
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto ExtendibleHashTable<KeyType, ValueType, KeyComparator>::SplitBucketPage(
     HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page, HashTableDirectoryPage *directory_page,
@@ -241,6 +262,51 @@ auto ExtendibleHashTable<KeyType, ValueType, KeyComparator>::SplitBucketPage(
   return new_bucket_page_id;
 }
 
+template <typename KeyType, typename ValueType, typename KeyComparator>
+bool ExtendibleHashTable<KeyType, ValueType, KeyComparator>::CheckMerge(HashTableDirectoryPage *directory_page,
+                                                                        uint32_t pid, uint32_t local_depth,
+                                                                        page_id_t *pInt) {
+  auto maxbit = (1 << (local_depth - 1));
+  auto npid = (pid ^ maxbit);
+  if (directory_page ->GetLocalDepth(npid) != local_depth) {
+    return false;
+  }
+  auto bucket_page_id = directory_page ->GetBucketPageId(npid);
+  *pInt = bucket_page_id;
+  auto bucket_page = FetchBucketPage(bucket_page_id);
+  bool flag = bucket_page ->IsEmpty();
+  buffer_pool_manager_ ->UnpinPage(bucket_page_id,false);
+  return flag;
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::Merge(Transaction *transaction,
+                                                                   HashTableDirectoryPage *directory_page,
+                                                                   page_id_t id0, page_id_t id1) {
+  auto global_mask = directory_page ->GetGlobalDepthMask();
+  for (int i = 0; i <= static_cast<int>(global_mask); ++i) {
+    auto bucket_page_id = directory_page ->GetBucketPageId(i);
+    if (bucket_page_id == id0) {
+      directory_page ->DecrLocalDepth(i);
+    } else if (bucket_page_id == id1) {
+      directory_page ->DecrLocalDepth(i);
+      directory_page ->SetBucketPageId(i,id0);
+    }
+  }
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+bool ExtendibleHashTable<KeyType, ValueType, KeyComparator>::CheckUpdateGlobalDepth(
+    HashTableDirectoryPage *directory_page) {
+  auto global_mask = directory_page ->GetGlobalDepthMask();
+  auto global_depth = directory_page ->GetGlobalDepth();
+  for (int i = 0; i <= static_cast<int>(global_mask); ++i) {
+    if (directory_page ->GetLocalDepth(i) == global_depth) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /*****************************************************************************
  * TEMPLATE DEFINITIONS - DO NOT TOUCH

@@ -159,7 +159,7 @@ class ExtendibleHashTable {
    * @param key the key that was removed
    * @param value the value that was removed
    */
-  void Merge(Transaction *transaction, const KeyType &key, const ValueType &value);
+  void Merge(Transaction *transaction, HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1);
 
   auto SplitBucketPage(HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucketPage,
                        HashTableDirectoryPage *directoryPage, page_id_t bucketPageId, uint32_t bucket_index) -> page_id_t;
@@ -174,6 +174,8 @@ class ExtendibleHashTable {
   HashFunction<KeyType> hash_fn_;
   void UpdateDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1);
   void UpdateLittleDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1, uint32_t i);
+  bool CheckMerge(HashTableDirectoryPage *directory_page, uint32_t pid, uint32_t i, page_id_t *pInt);
+  bool CheckUpdateGlobalDepth(HashTableDirectoryPage *directory_page);
 };
 
 }  // namespace bustub
