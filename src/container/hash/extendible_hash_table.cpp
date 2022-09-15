@@ -309,6 +309,7 @@ void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::Merge(Transaction *
       directory_page ->SetBucketPageId(i,id0);
     }
   }
+  buffer_pool_manager_ ->DeletePage(id1);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
