@@ -30,7 +30,7 @@ TEST(HashTableTest, SampleTest) {
   ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
 
   // insert a few values
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 100; i++) {
     ht.Insert(nullptr, i, i);
     std::vector<int> res;
     ht.GetValue(nullptr, i, &res);
@@ -41,7 +41,7 @@ TEST(HashTableTest, SampleTest) {
   ht.VerifyIntegrity();
 
   // check if the inserted values are all there
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 100; i++) {
     std::vector<int> res;
     ht.GetValue(nullptr, i, &res);
     EXPECT_EQ(1, res.size()) << "Failed to keep " << i << std::endl;
@@ -51,7 +51,7 @@ TEST(HashTableTest, SampleTest) {
   ht.VerifyIntegrity();
 
   // insert one more value for each key
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 100; i++) {
     if (i == 0) {
       // duplicate values for the same key are not allowed
       EXPECT_FALSE(ht.Insert(nullptr, i, 2 * i));
@@ -78,13 +78,9 @@ TEST(HashTableTest, SampleTest) {
 
   ht.VerifyIntegrity();
 
-  // look for a key that does not exist
-  std::vector<int> res;
-  ht.GetValue(nullptr, 20, &res);
-  EXPECT_EQ(0, res.size());
 
   // delete some values
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 100; i++) {
     EXPECT_TRUE(ht.Remove(nullptr, i, i));
     std::vector<int> res;
     ht.GetValue(nullptr, i, &res);
@@ -100,7 +96,7 @@ TEST(HashTableTest, SampleTest) {
   ht.VerifyIntegrity();
 
   // delete all values
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 100; i++) {
     if (i == 0) {
       // (0, 0) has been deleted
       EXPECT_FALSE(ht.Remove(nullptr, i, 2 * i));

@@ -57,7 +57,8 @@ auto HASH_TABLE_TYPE::Hash(KeyType key) -> uint32_t {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 inline auto HASH_TABLE_TYPE::KeyToDirectoryIndex(KeyType key, HashTableDirectoryPage *dir_page) -> uint32_t {
   auto global_mask = dir_page -> GetGlobalDepthMask();
-  auto hash_key = (Hash(key) & global_mask);
+  auto hash_val = Hash(key);
+  auto hash_key = (hash_val & global_mask);
 
   return hash_key;
 }
@@ -125,6 +126,14 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
       UpdateDirectoryPage(directory_page,bucket_page_id,new_bucket_page_id);
     } else {
       UpdateLittleDirectoryPage(directory_page, bucket_page_id, new_bucket_page_id, last_local_depth + 1);
+    }
+    auto another_bucket_page_id = KeyToPageId(key,directory_page);
+    if (another_bucket_page_id != bucket_page_id) {
+      auto another_bucket_page = FetchBucketPage(another_bucket_page_id);
+      another_bucket_page ->Insert(key,value,comparator_);
+      buffer_pool_manager_ ->UnpinPage(another_bucket_page_id,true);
+    } else {
+      bucket_page ->Insert(key,value,comparator_);
     }
     buffer_pool_manager_ ->UnpinPage(directory_page_id_,true);
     buffer_pool_manager_ ->UnpinPage(bucket_page_id,true);
@@ -225,6 +234,7 @@ void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::UpdateDirectoryPage
   //先复制指针
   for (auto i = 0; i < offset; i++) {
     directory_page ->SetBucketPageId(i + offset,directory_page ->GetBucketPageId(i));
+    directory_page ->SetLocalDepth(i + offset,directory_page ->GetLocalDepth(i));
   }
   offset <<= 1;
   for (auto i = 0; i < offset; i++) {
@@ -243,14 +253,16 @@ auto ExtendibleHashTable<KeyType, ValueType, KeyComparator>::SplitBucketPage(
     HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page, HashTableDirectoryPage *directory_page,
     page_id_t bucket_page_id, uint32_t bucket_index) -> page_id_t {
   auto local_depth = directory_page ->GetLocalDepth(bucket_index);
+  local_depth++;
   page_id_t new_bucket_page_id = INVALID_PAGE_ID;
   auto new_bucket_page = reinterpret_cast<HashTableBucketPage<KeyType, ValueType, KeyComparator> *>(
       buffer_pool_manager_->NewPage(&new_bucket_page_id, nullptr)->GetData());
   std::vector<MappingType> elements;
   bucket_page ->GetAllPairs(&elements);
   bucket_page ->Clear();
+  auto maskbits = (1 << local_depth) - 1;
   for (auto it : elements) {
-    auto hash_val = (Hash(it.first) & directory_page -> GetGlobalDepth());
+    auto hash_val = (Hash(it.first) & maskbits);
     auto check_bit = ((hash_val >> (local_depth - 1)) & 1);
     if (check_bit) {
       new_bucket_page ->Insert(it.first,it.second,comparator_);
@@ -266,12 +278,16 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 bool ExtendibleHashTable<KeyType, ValueType, KeyComparator>::CheckMerge(HashTableDirectoryPage *directory_page,
                                                                         uint32_t pid, uint32_t local_depth,
                                                                         page_id_t *pInt) {
-  auto maxbit = (1 << (local_depth - 1));
+  auto global_depth = directory_page ->GetGlobalDepth();
+  auto maxbit = (1 << (global_depth - 1));
   auto npid = (pid ^ maxbit);
   if (directory_page ->GetLocalDepth(npid) != local_depth) {
     return false;
   }
   auto bucket_page_id = directory_page ->GetBucketPageId(npid);
+  if (bucket_page_id == directory_page ->GetBucketPageId(pid)) {
+    return false;
+  }
   *pInt = bucket_page_id;
   auto bucket_page = FetchBucketPage(bucket_page_id);
   bool flag = bucket_page ->IsEmpty();
@@ -301,7 +317,7 @@ bool ExtendibleHashTable<KeyType, ValueType, KeyComparator>::CheckUpdateGlobalDe
   auto global_mask = directory_page ->GetGlobalDepthMask();
   auto global_depth = directory_page ->GetGlobalDepth();
   for (int i = 0; i <= static_cast<int>(global_mask); ++i) {
-    if (directory_page ->GetLocalDepth(i) == global_depth) {
+    if (directory_page ->GetLocalDepth(i) >= global_depth) {
       return false;
     }
   }
