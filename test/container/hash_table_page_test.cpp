@@ -25,7 +25,7 @@ namespace bustub {
 // NOLINTNEXTLINE
 TEST(HashTablePageTest, HashTablePageIntegratedTest) {
   size_t buffer_pool_size = 3;
-  size_t hash_table_size = 500;
+  size_t hash_table_size = 700;
   auto *disk_manager = new DiskManager("test.db");
   auto *bpm = new BufferPoolManagerInstance(buffer_pool_size, disk_manager);
 
