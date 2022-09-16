@@ -195,9 +195,7 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 void HashTableBucketPage<KeyType, ValueType, KeyComparator>::Clear() {
   memset(occupied_,0,sizeof(occupied_));
   memset(readable_,0,sizeof(readable_));
-  size_ = capacity_ = 0;
-  delete[] array_;
-  array_ = nullptr;
+  size_ = 0;
 }
 
 // DO NOT REMOVE ANYTHING BELOW THIS LINE

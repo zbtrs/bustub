@@ -37,6 +37,9 @@ HASH_TABLE_TYPE::ExtendibleHashTable(const std::string &name, BufferPoolManager 
   directory_page->SetLocalDepth(1, 1);
   directory_page->SetBucketPageId(0, bucket_page_id_1);
   directory_page->SetBucketPageId(1, bucket_page_id_2);
+  buffer_pool_manager_ ->UnpinPage(bucket_page_id_1, true);
+  buffer_pool_manager_ ->UnpinPage(bucket_page_id_2, true);
+  buffer_pool_manager_ ->UnpinPage(directory_page_id_,true);
 }
 
 /*****************************************************************************
@@ -270,6 +273,7 @@ auto ExtendibleHashTable<KeyType, ValueType, KeyComparator>::SplitBucketPage(
       bucket_page ->Insert(it.first,it.second,comparator_);
     }
   }
+  buffer_pool_manager_ ->UnpinPage(new_bucket_page_id, true);
 
   return new_bucket_page_id;
 }

@@ -29,6 +29,7 @@ class ZeroHashFunction : public HashFunction<KeyType> {
 
 // NOLINTNEXTLINE
 
+
 template <typename KeyType>
 KeyType GetKey(int i) {
   KeyType key;
@@ -49,7 +50,7 @@ ValueType GetValue(int i) {
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void InsertTestCall(KeyType k /* unused */, ValueType v /* unused */, KeyComparator comparator) {
   auto *disk_manager = new DiskManager("test.db");
-  auto *bpm = new BufferPoolManagerInstance(14, disk_manager);
+  auto *bpm = new BufferPoolManagerInstance(3, disk_manager);
   ExtendibleHashTable<KeyType, ValueType, KeyComparator> ht("blah", bpm, comparator, HashFunction<KeyType>());
 
   for (int i = 0; i < 10; i++) {
@@ -127,7 +128,7 @@ void InsertTestCall(KeyType k /* unused */, ValueType v /* unused */, KeyCompara
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void RemoveTestCall(KeyType k /* unused */, ValueType v /* unused */, KeyComparator comparator) {
   auto *disk_manager = new DiskManager("test.db");
-  auto *bpm = new BufferPoolManagerInstance(3, disk_manager);
+  auto *bpm = new BufferPoolManagerInstance(13, disk_manager);
   ExtendibleHashTable<KeyType, ValueType, KeyComparator> ht("blah", bpm, comparator, HashFunction<KeyType>());
 
   for (int i = 1; i < 10; i++) {
@@ -212,7 +213,7 @@ void RemoveTestCall(KeyType k /* unused */, ValueType v /* unused */, KeyCompara
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void SplitGrowTestCall(KeyType k /* unused */, ValueType v /* unused */, KeyComparator comparator) {
   auto *disk_manager = new DiskManager("test.db");
-  auto *bpm = new BufferPoolManagerInstance(4, disk_manager);
+  auto *bpm = new BufferPoolManagerInstance(20, disk_manager);
   ExtendibleHashTable<KeyType, ValueType, KeyComparator> ht("blah", bpm, comparator, HashFunction<KeyType>());
 
   for (int i = 0; i < 500; i++) {
@@ -247,7 +248,7 @@ void SplitGrowTestCall(KeyType k /* unused */, ValueType v /* unused */, KeyComp
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void GrowShrinkTestCall(KeyType k /* unused */, ValueType v /* unused */, KeyComparator comparator) {
   auto *disk_manager = new DiskManager("test.db");
-  auto *bpm = new BufferPoolManagerInstance(15, disk_manager);
+  auto *bpm = new BufferPoolManagerInstance(35, disk_manager);
   ExtendibleHashTable<KeyType, ValueType, KeyComparator> ht("blah", bpm, comparator, HashFunction<KeyType>());
 
   for (int i = 0; i < 1000; i++) {
@@ -390,94 +391,160 @@ TEST(HashTableTest, GrowShrinkTest) {
   GenericTestCall<GenericKey<32>, RID, GenericComparator<32>>(GrowShrinkTestCall);
   GenericTestCall<GenericKey<64>, RID, GenericComparator<64>>(GrowShrinkTestCall);
 }
-// NOLINTNEXTLINE
-TEST(HashTableTest, SampleTest) {
-  auto *disk_manager = new DiskManager("test.db");
-  auto *bpm = new BufferPoolManagerInstance(50, disk_manager);
-  ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
 
-  // insert a few values
-  for (int i = 0; i < 100; i++) {
-    ht.Insert(nullptr, i, i);
-    std::vector<int> res;
-    ht.GetValue(nullptr, i, &res);
-    EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
-    EXPECT_EQ(i, res[0]);
-  }
+TEST(HashTableTest, IntegratedConcurrencyTest) {
+  const int num_threads = 5;
+  const int num_runs = 50;
 
-  ht.VerifyIntegrity();
+  for (int run = 0; run < num_runs; run++) {
+    auto *disk_manager = new DiskManager("test.db");
+    auto *bpm = new BufferPoolManagerInstance(50, disk_manager);
 
-  // check if the inserted values are all there
-  for (int i = 0; i < 100; i++) {
-    std::vector<int> res;
-    ht.GetValue(nullptr, i, &res);
-    EXPECT_EQ(1, res.size()) << "Failed to keep " << i << std::endl;
-    EXPECT_EQ(i, res[0]);
-  }
+    ExtendibleHashTable<int, int, IntComparator> *ht =
+        new ExtendibleHashTable<int, int, IntComparator>("blah", bpm, IntComparator(), HashFunction<int>());
+    std::vector<std::thread> threads(num_threads);
 
-  ht.VerifyIntegrity();
-
-  // insert one more value for each key
-  for (int i = 0; i < 100; i++) {
-    if (i == 0) {
-      // duplicate values for the same key are not allowed
-      EXPECT_FALSE(ht.Insert(nullptr, i, 2 * i));
-    } else {
-      EXPECT_TRUE(ht.Insert(nullptr, i, 2 * i));
+    for (int tid = 0; tid < num_threads; tid++) {
+      threads[tid] = std::thread([&ht, tid]() {
+        ht->Insert(nullptr, tid, tid);
+        std::vector<int> res;
+        ht->GetValue(nullptr, tid, &res);
+        EXPECT_EQ(1, res.size()) << "Failed to insert " << tid << std::endl;
+        EXPECT_EQ(tid, res[0]);
+      });
     }
-    ht.Insert(nullptr, i, 2 * i);
+
+    for (int i = 0; i < num_threads; i++) {
+      threads[i].join();
+    }
+
+    threads.clear();
+
+    threads.resize(num_threads);
+    for (int tid = 0; tid < num_threads; tid++) {
+      threads[tid] = std::thread([&ht, tid]() {
+        ht->Remove(nullptr, tid, tid);
+        std::vector<int> res;
+        ht->GetValue(nullptr, tid, &res);
+        EXPECT_EQ(0, res.size());
+      });
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+      threads[i].join();
+    }
+
+    threads.clear();
+
+    threads.resize(num_threads);
+    for (int tid = 0; tid < num_threads; tid++) {
+      threads[tid] = std::thread([&ht, tid]() {
+        // LOG_DEBUG("thread %d\n",tid);
+        ht->Insert(nullptr, 1, tid);
+        std::vector<int> res;
+        ht->GetValue(nullptr, 1, &res);
+        bool found = false;
+        for (auto r : res) {
+          if (r == tid) {
+            found = true;
+          }
+        }
+        EXPECT_EQ(true, found);
+      });
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+      threads[i].join();
+    }
+
     std::vector<int> res;
-    ht.GetValue(nullptr, i, &res);
-    if (i == 0) {
-      // duplicate values for the same key are not allowed
-      EXPECT_EQ(1, res.size());
-      EXPECT_EQ(i, res[0]);
-    } else {
-      EXPECT_EQ(2, res.size());
-      if (res[0] == i) {
-        EXPECT_EQ(2 * i, res[1]);
-      } else {
-        EXPECT_EQ(2 * i, res[0]);
-        EXPECT_EQ(i, res[1]);
-      }
-    }
+    ht->GetValue(nullptr, 1, &res);
+
+    EXPECT_EQ(num_threads, res.size());
+
+    delete ht;
+    disk_manager->ShutDown();
+    remove("test.db");
+    delete disk_manager;
+    delete bpm;
   }
-
-  ht.VerifyIntegrity();
-
-
-  // delete some values
-  for (int i = 0; i < 100; i++) {
-    EXPECT_TRUE(ht.Remove(nullptr, i, i));
-    std::vector<int> res;
-    ht.GetValue(nullptr, i, &res);
-    if (i == 0) {
-      // (0, 0) is the only pair with key 0
-      EXPECT_EQ(0, res.size());
-    } else {
-      EXPECT_EQ(1, res.size());
-      EXPECT_EQ(2 * i, res[0]);
-    }
-  }
-
-  ht.VerifyIntegrity();
-
-  // delete all values
-  for (int i = 0; i < 100; i++) {
-    if (i == 0) {
-      // (0, 0) has been deleted
-      EXPECT_FALSE(ht.Remove(nullptr, i, 2 * i));
-    } else {
-      EXPECT_TRUE(ht.Remove(nullptr, i, 2 * i));
-    }
-  }
-
-  ht.VerifyIntegrity();
-
-  disk_manager->ShutDown();
-  remove("test.db");
-  delete disk_manager;
-  delete bpm;
 }
 
+TEST(HashTableTest, GrowShrinkConcurrencyTest) {
+  const int num_threads = 5;
+  const int num_runs = 50;
+
+  for (int run = 0; run < num_runs; run++) {
+    auto *disk_manager = new DiskManager("test.db");
+    auto *bpm = new BufferPoolManagerInstance(50, disk_manager);
+    ExtendibleHashTable<int, int, IntComparator> *ht =
+        new ExtendibleHashTable<int, int, IntComparator>("blah", bpm, IntComparator(), HashFunction<int>());
+    std::vector<std::thread> threads(num_threads);
+
+    for (int tid = 0; tid < num_threads; tid++) {
+      threads[tid] = std::thread([&ht, tid]() {
+        for (int i = num_threads * tid; i < num_threads * (tid + 1); i++) {
+          ht->Insert(nullptr, i, i);
+          std::vector<int> res;
+          ht->GetValue(nullptr, i, &res);
+          EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
+          EXPECT_EQ(i, res[0]);
+        }
+      });
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+      threads[i].join();
+    }
+
+    threads.clear();
+
+    threads.resize(num_threads);
+    for (int tid = 0; tid < num_threads; tid++) {
+      threads[tid] = std::thread([&ht, tid]() {
+        for (int i = num_threads * tid; i < num_threads * (tid + 1); i++) {
+          std::vector<int> res;
+          ht->GetValue(nullptr, i, &res);
+          EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
+          EXPECT_EQ(i, res[0]);
+        }
+      });
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+      threads[i].join();
+    }
+
+    threads.clear();
+
+    threads.resize(num_threads);
+    for (int tid = 0; tid < num_threads; tid++) {
+      threads[tid] = std::thread([&ht, tid]() {
+        for (int i = num_threads * tid; i < num_threads * (tid + 1); i++) {
+          ht->Insert(nullptr, i, i);
+          std::vector<int> res;
+          ht->GetValue(nullptr, i, &res);
+          EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
+        }
+        for (int i = num_threads * tid; i < num_threads * (tid + 1); i++) {
+          ht->Remove(nullptr, i, i);
+          std::vector<int> res;
+          ht->GetValue(nullptr, i, &res);
+          EXPECT_EQ(0, res.size()) << "Failed to insert " << tid << std::endl;
+        }
+      });
+    }
+
+    for (int i = 0; i < num_threads; i++) {
+      threads[i].join();
+    }
+
+    threads.clear();
+    delete ht;
+    disk_manager->ShutDown();
+    remove("test.db");
+    delete disk_manager;
+    delete bpm;
+  }
+}
 }  // namespace bustub
