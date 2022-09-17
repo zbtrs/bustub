@@ -174,7 +174,8 @@ class ExtendibleHashTable {
   ReaderWriterLatch table_latch_;
   HashFunction<KeyType> hash_fn_;
   void UpdateDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1);
-  void UpdateLittleDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1, uint32_t local_depth);
+  void UpdateLittleDirectoryPage(HashTableDirectoryPage *directory_page,page_id_t id0, page_id_t id1,
+                                 uint32_t local_depth);
   bool CheckMerge(HashTableDirectoryPage *directory_page, uint32_t pid, uint32_t local_depth, page_id_t *pInt);
   bool CheckUpdateGlobalDepth(HashTableDirectoryPage *directory_page);
   void AddDirectoryLatch(HashTableDirectoryPage *directory_page, char ch);
