@@ -107,13 +107,11 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
     latch_.unlock();
     return nullptr;
   }
-  //LOG_INFO("sb2");
   frame_id_t stored_frame;
   if (!findFrame(&stored_frame)) {
     latch_.unlock();
     return nullptr;
   }
-  //LOG_INFO("sb");
   page_id_t new_page_id = AllocatePage();
   Page *new_page = &pages_[stored_frame];
   new_page -> page_id_ = new_page_id;

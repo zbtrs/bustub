@@ -260,6 +260,7 @@ auto ExtendibleHashTable<KeyType, ValueType, KeyComparator>::SplitBucketPage(
   page_id_t new_bucket_page_id = INVALID_PAGE_ID;
   auto new_bucket_page = reinterpret_cast<HashTableBucketPage<KeyType, ValueType, KeyComparator> *>(
       buffer_pool_manager_->NewPage(&new_bucket_page_id, nullptr)->GetData());
+  new_bucket_page ->Clear();
   std::vector<MappingType> elements;
   bucket_page ->GetAllPairs(&elements);
   bucket_page ->Clear();
@@ -285,7 +286,7 @@ bool ExtendibleHashTable<KeyType, ValueType, KeyComparator>::CheckMerge(HashTabl
   auto global_depth = directory_page ->GetGlobalDepth();
   auto maxbit = (1 << (global_depth - 1));
   auto npid = (pid ^ maxbit);
-  if (directory_page ->GetLocalDepth(npid) != local_depth) {
+  if (local_depth <= 1 || directory_page ->GetLocalDepth(npid) != local_depth) {
     return false;
   }
   auto bucket_page_id = directory_page ->GetBucketPageId(npid);
@@ -313,6 +314,7 @@ void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::Merge(Transaction *
       directory_page ->SetBucketPageId(i,id0);
     }
   }
+  buffer_pool_manager_ ->UnpinPage(id1,true);
   buffer_pool_manager_ ->DeletePage(id1);
 }
 

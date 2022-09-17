@@ -482,6 +482,41 @@ TEST(HashTableTest, GrowShrinkTest) {
   GenericTestCall<GenericKey<64>, RID, GenericComparator<64>>(GrowShrinkTestCall);
 }
 
+// NOLINTNEXTLINE
+TEST(HashTableVerificationTest, DiskManagerTest) {
+  auto *disk_manager = new DiskManager("test.db");
+  // We should be able to do anything with strictly 3 pages allocated.
+  auto *bpm = new BufferPoolManagerInstance(3, disk_manager);
+  ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
+
+  int num_values_to_insert = 20000;
+  // insert a few values
+  for (int i = 0; i < num_values_to_insert; i++) {
+    ht.Insert(nullptr, i, i);
+    std::vector<int> res;
+    ht.GetValue(nullptr, i, &res);
+    EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
+    EXPECT_EQ(i, res[0]);
+  }
+
+  // check if the inserted values are all there
+  for (int i = 0; i < num_values_to_insert; i++) {
+    std::vector<int> res;
+    ht.GetValue(nullptr, i, &res);
+    EXPECT_EQ(1, res.size()) << "Failed to keep " << i << std::endl;
+    EXPECT_EQ(i, res[0]);
+  }
+
+  // At least one page needs to be swapped
+  bool are_buffer_pages_correct = disk_manager->GetNumWrites() >= 0;
+  EXPECT_TRUE(are_buffer_pages_correct) << "Incorrect usage of buffer pool";
+
+  disk_manager->ShutDown();
+  remove("test.db");
+  delete disk_manager;
+  delete bpm;
+}
+
 TEST(HashTableTest, IntegratedConcurrencyTest) {
   const int num_threads = 5;
   const int num_runs = 50;
