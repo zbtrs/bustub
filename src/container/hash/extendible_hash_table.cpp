@@ -163,13 +163,13 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
   auto bucket_page = FetchBucketPage(bucket_page_id);
   auto directory_index = KeyToDirectoryIndex(key,directory_page);
   auto local_depth = directory_page ->GetLocalDepth(directory_index);
-  if (!bucket_page ->FindElement(key,value,comparator_)) {
+  page_id_t another_bucket_page_id = 0;
+  if (!bucket_page ->FindElement(key,value,comparator_) && (!bucket_page ->IsEmpty() || !CheckMerge(directory_page, directory_index, local_depth, &another_bucket_page_id))) {
     buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
     buffer_pool_manager_ ->UnpinPage(bucket_page_id,false);
     return false;
   }
   bucket_page ->Remove(key,value,comparator_);
-  page_id_t another_bucket_page_id = 0;
   if (!bucket_page ->IsEmpty() || !CheckMerge(directory_page, directory_index, local_depth, &another_bucket_page_id)) {
     buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
     buffer_pool_manager_ ->UnpinPage(bucket_page_id,true);
