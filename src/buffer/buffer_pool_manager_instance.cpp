@@ -50,21 +50,21 @@ BufferPoolManagerInstance::~BufferPoolManagerInstance() {
   free_list_.clear();
 }
 
-bool BufferPoolManagerInstance::findFrame(frame_id_t *frame_id) {
+bool BufferPoolManagerInstance::FindFrame(frame_id_t *frame_id) {
   if (!free_list_.empty()) {
     *frame_id = free_list_.front();
     free_list_.pop_front();
     return true;
   }
-  if (replacer_ ->Victim(frame_id)) {
-    //如果要替换的帧在page_table_中，就要改写，这里可以另外用一个map
+  if (replacer_->Victim(frame_id)) {
+    // 如果要替换的帧在page_table_中，就要改写，这里可以另外用一个map
     if (reverse_page_table_.find(*frame_id) != reverse_page_table_.end()) {
-      Page* replaced_page = &pages_[*frame_id];
-      if (replaced_page -> is_dirty_) {
-        disk_manager_ ->WritePage(replaced_page -> page_id_,replaced_page->data_);
-        replaced_page -> pin_count_ = 0;
+      Page *replaced_page = &pages_[*frame_id];
+      if (replaced_page->is_dirty_) {
+        disk_manager_->WritePage(replaced_page->page_id_, replaced_page->data_);
+        replaced_page->pin_count_ = 0;
       }
-      page_table_.erase(replaced_page -> page_id_);
+      page_table_.erase(replaced_page->page_id_);
       reverse_page_table_.erase(*frame_id);
     }
     return true;
@@ -77,16 +77,16 @@ auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
   if (page_id == INVALID_PAGE_ID || page_table_.find(page_id) == page_table_.end()) {
     return false;
   }
-  disk_manager_ ->WritePage(page_id,pages_[page_table_[page_id]].data_);
+  disk_manager_->WritePage(page_id, pages_[page_table_[page_id]].data_);
   return true;
 }
 
 void BufferPoolManagerInstance::FlushAllPgsImp() {
-  //latch_.lock();
+  // latch_.lock();
   for (auto it : page_table_) {
-    disk_manager_ ->WritePage(it.first,pages_[it.second].data_);
+    disk_manager_->WritePage(it.first, pages_[it.second].data_);
   }
-  //latch_.unlock();
+  // latch_.unlock();
 }
 
 auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
@@ -108,19 +108,19 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
     return nullptr;
   }
   frame_id_t stored_frame;
-  if (!findFrame(&stored_frame)) {
+  if (!FindFrame(&stored_frame)) {
     latch_.unlock();
     return nullptr;
   }
   page_id_t new_page_id = AllocatePage();
   Page *new_page = &pages_[stored_frame];
-  new_page -> page_id_ = new_page_id;
-  new_page -> pin_count_++;
-  replacer_ -> Pin(stored_frame);
+  new_page->page_id_ = new_page_id;
+  new_page->pin_count_++;
+  replacer_->Pin(stored_frame);
   page_table_[new_page_id] = stored_frame;
   reverse_page_table_[stored_frame] = new_page_id;
-  new_page -> is_dirty_ = false;
-  disk_manager_ ->WritePage(new_page -> GetPageId(),new_page -> GetData());
+  new_page->is_dirty_ = false;
+  disk_manager_->WritePage(new_page->GetPageId(), new_page->GetData());
   *page_id = new_page_id;
   latch_.unlock();
 
@@ -138,28 +138,28 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   latch_.lock();
   if (page_table_.find(page_id) != page_table_.end()) {
     frame_id_t frame_id = page_table_[page_id];
-    Page* page = &pages_[frame_id];
+    Page *page = &pages_[frame_id];
     page->pin_count_++;
-    replacer_ ->Pin(frame_id);
+    replacer_->Pin(frame_id);
     latch_.unlock();
     return page;
   }
   frame_id_t stored_frame;
-  if (!findFrame(&stored_frame)) {
+  if (!FindFrame(&stored_frame)) {
     latch_.unlock();
     return nullptr;
   }
   Page *new_page = &pages_[stored_frame];
-  if (new_page -> is_dirty_) {
-    disk_manager_ ->WritePage(new_page -> page_id_,new_page -> data_);
+  if (new_page->is_dirty_) {
+    disk_manager_->WritePage(new_page->page_id_, new_page->data_);
   }
-  page_table_.erase(new_page -> page_id_);
-  new_page -> page_id_ = page_id;
-  new_page -> pin_count_++;
-  replacer_ -> Pin(stored_frame);
-  new_page -> is_dirty_ = false;
-  replacer_ ->Pin(stored_frame);
-  disk_manager_->ReadPage(page_id,new_page->GetData());
+  page_table_.erase(new_page->page_id_);
+  new_page->page_id_ = page_id;
+  new_page->pin_count_++;
+  replacer_->Pin(stored_frame);
+  new_page->is_dirty_ = false;
+  replacer_->Pin(stored_frame);
+  disk_manager_->ReadPage(page_id, new_page->GetData());
   page_table_[page_id] = stored_frame;
   reverse_page_table_[stored_frame] = page_id;
   latch_.unlock();
@@ -175,27 +175,27 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   // 3.   Otherwise, P can be deleted. Remove P from the page table, reset its metadata and return it to the free list.
 
   latch_.lock();
-  //DeallocatePage(page_id);
+  // DeallocatePage(page_id);
   if (page_table_.find(page_id) == page_table_.end()) {
     latch_.unlock();
     return true;
   }
   frame_id_t stored_frame = page_table_[page_id];
   Page *delete_page = &pages_[stored_frame];
-  if (delete_page -> pin_count_ > 0) {
+  if (delete_page->pin_count_ > 0) {
     latch_.unlock();
     return false;
   }
-  if (delete_page -> is_dirty_) {
+  if (delete_page->is_dirty_) {
     FlushPgImp(page_id);
   }
   DeallocatePage(page_id);
   reverse_page_table_.erase(stored_frame);
   page_table_.erase(page_id);
   free_list_.push_back(stored_frame);
-  delete_page -> is_dirty_ = false;
-  delete_page -> pin_count_ = 0;
-  delete_page -> page_id_ = INVALID_PAGE_ID;
+  delete_page->is_dirty_ = false;
+  delete_page->pin_count_ = 0;
+  delete_page->page_id_ = INVALID_PAGE_ID;
 
   latch_.unlock();
   return true;
@@ -209,17 +209,17 @@ auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> 
   }
   frame_id_t stored_frame = page_table_[page_id];
   Page *unpin_page = &pages_[stored_frame];
-  //unpin_page -> is_dirty_ = is_dirty;
-  if (is_dirty) { //notice
-    unpin_page -> is_dirty_ = true;
+  // unpin_page -> is_dirty_ = is_dirty;
+  if (is_dirty) {  // notice
+    unpin_page->is_dirty_ = true;
   }
-  if (unpin_page -> pin_count_ == 0) {
+  if (unpin_page->pin_count_ == 0) {
     latch_.unlock();
     return false;
   }
-  unpin_page -> pin_count_--;
-  if (unpin_page -> GetPinCount() == 0) {
-    replacer_ ->Unpin(stored_frame);
+  unpin_page->pin_count_--;
+  if (unpin_page->GetPinCount() == 0) {
+    replacer_->Unpin(stored_frame);
   }
 
   latch_.unlock();

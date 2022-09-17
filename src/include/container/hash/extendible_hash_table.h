@@ -161,8 +161,9 @@ class ExtendibleHashTable {
    */
   void Merge(Transaction *transaction, HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1);
 
-  auto SplitBucketPage(HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucketPage,
-                       HashTableDirectoryPage *directoryPage, page_id_t bucketPageId, uint32_t bucket_index) -> page_id_t;
+  auto SplitBucketPage(HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page,
+                       HashTableDirectoryPage *directory_page, page_id_t bucket_page_id, uint32_t bucket_index)
+      -> page_id_t;
 
   // member variables
   page_id_t directory_page_id_;
@@ -173,11 +174,9 @@ class ExtendibleHashTable {
   ReaderWriterLatch table_latch_;
   HashFunction<KeyType> hash_fn_;
   void UpdateDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1);
-  void UpdateLittleDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1, uint32_t i);
-  bool CheckMerge(HashTableDirectoryPage *directory_page, uint32_t pid, uint32_t i, page_id_t *pInt);
+  void UpdateLittleDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1, uint32_t local_depth);
+  bool CheckMerge(HashTableDirectoryPage *directory_page, uint32_t pid, uint32_t local_depth, page_id_t *pInt);
   bool CheckUpdateGlobalDepth(HashTableDirectoryPage *directory_page);
-  void AddDirectoryRlatch(HashTableDirectoryPage *directory_page);
-  void RemoveDirectoryRlatch(HashTableDirectoryPage *directory_page);
   void AddDirectoryLatch(HashTableDirectoryPage *directory_page, char ch);
   void RemoveDirectoryLatch(HashTableDirectoryPage *directory_page, char ch);
   void AddBucketLatch(HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page, char ch);

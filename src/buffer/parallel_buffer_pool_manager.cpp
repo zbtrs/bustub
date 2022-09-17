@@ -22,7 +22,7 @@ ParallelBufferPoolManager::ParallelBufferPoolManager(size_t num_instances, size_
   pool_size_ = pool_size;
   disk_manager_ = disk_manager;
   log_manager_ = log_manager;
-  buffer_pools_ = new BufferPoolManagerInstance*[num_instances];
+  buffer_pools_ = new BufferPoolManagerInstance *[num_instances];
   allocated_ = new bool[num_instances];
   for (int i = 0; i < static_cast<int>(num_instances); ++i) {
     allocated_[i] = false;
@@ -51,7 +51,7 @@ auto ParallelBufferPoolManager::GetBufferPoolManager(page_id_t page_id) -> Buffe
   auto index = buffer_pool_table_[page_id % num_instances_];
   if (!allocated_[index]) {
     allocated_[index] = true;
-    buffer_pools_[index] = new BufferPoolManagerInstance(pool_size_,disk_manager_,log_manager_);
+    buffer_pools_[index] = new BufferPoolManagerInstance(pool_size_, disk_manager_, log_manager_);
   }
   return buffer_pools_[index];
 }
@@ -59,25 +59,25 @@ auto ParallelBufferPoolManager::GetBufferPoolManager(page_id_t page_id) -> Buffe
 auto ParallelBufferPoolManager::FetchPgImp(page_id_t page_id) -> Page * {
   latch_.lock();
   // Fetch page for page_id from responsible BufferPoolManagerInstance
-  BufferPoolManagerInstance* buffer_pool = GetBufferPoolManager(page_id);
+  BufferPoolManagerInstance *buffer_pool = GetBufferPoolManager(page_id);
   latch_.unlock();
-  return buffer_pool ->FetchPgImp(page_id);
+  return buffer_pool->FetchPgImp(page_id);
 }
 
 auto ParallelBufferPoolManager::UnpinPgImp(page_id_t page_id, bool is_dirty) -> bool {
   latch_.lock();
   // Unpin page_id from responsible BufferPoolManagerInstance
-  BufferPoolManagerInstance* buffer_pool = GetBufferPoolManager(page_id);
+  BufferPoolManagerInstance *buffer_pool = GetBufferPoolManager(page_id);
   latch_.unlock();
-  return buffer_pool ->UnpinPgImp(page_id,is_dirty);
+  return buffer_pool->UnpinPgImp(page_id, is_dirty);
 }
 
 auto ParallelBufferPoolManager::FlushPgImp(page_id_t page_id) -> bool {
   // Flush page_id from responsible BufferPoolManagerInstance
   latch_.lock();
-  BufferPoolManagerInstance* buffer_pool = GetBufferPoolManager(page_id);
+  BufferPoolManagerInstance *buffer_pool = GetBufferPoolManager(page_id);
   latch_.unlock();
-  return buffer_pool ->FlushPgImp(page_id);
+  return buffer_pool->FlushPgImp(page_id);
 }
 
 auto ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) -> Page * {
@@ -89,21 +89,20 @@ auto ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) -> Page * {
   // is called
   latch_.lock();
   auto x = start_index_;
-  Page* result = nullptr;
+  Page *result = nullptr;
   do {
-    BufferPoolManagerInstance*& buffer_pool = buffer_pools_[x];
+    BufferPoolManagerInstance *&buffer_pool = buffer_pools_[x];
     if (!allocated_[x]) {
       allocated_[x] = true;
-      buffer_pool = new BufferPoolManagerInstance(pool_size_,disk_manager_,log_manager_);
+      buffer_pool = new BufferPoolManagerInstance(pool_size_, disk_manager_, log_manager_);
     }
-    result = buffer_pool ->NewPgImp(page_id);
+    result = buffer_pool->NewPgImp(page_id);
     if (result == nullptr) {
       ++x;
       if (x == num_instances_) {
         x = 0;
       }
-    }
-    else {
+    } else {
       start_index_++;
       if (start_index_ == num_instances_) {
         start_index_ = 0;
@@ -111,7 +110,7 @@ auto ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) -> Page * {
       latch_.unlock();
       return result;
     }
-  }while (x != start_index_);
+  } while (x != start_index_);
   start_index_++;
   if (start_index_ == num_instances_) {
     start_index_ = 0;
@@ -123,9 +122,9 @@ auto ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) -> Page * {
 auto ParallelBufferPoolManager::DeletePgImp(page_id_t page_id) -> bool {
   // Delete page_id from responsible BufferPoolManagerInstance
   latch_.lock();
-  BufferPoolManagerInstance* buffer_pool = GetBufferPoolManager(page_id);
+  BufferPoolManagerInstance *buffer_pool = GetBufferPoolManager(page_id);
   latch_.unlock();
-  return buffer_pool ->DeletePgImp(page_id);
+  return buffer_pool->DeletePgImp(page_id);
 }
 
 void ParallelBufferPoolManager::FlushAllPgsImp() {
@@ -133,7 +132,7 @@ void ParallelBufferPoolManager::FlushAllPgsImp() {
   latch_.lock();
   for (int i = 0; i < static_cast<int>(num_instances_); ++i) {
     if (buffer_pools_[i] != nullptr) {
-      buffer_pools_[i] -> FlushAllPgsImp();
+      buffer_pools_[i]->FlushAllPgsImp();
     }
   }
   latch_.unlock();

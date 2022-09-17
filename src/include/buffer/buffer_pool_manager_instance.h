@@ -29,6 +29,7 @@ namespace bustub {
  */
 class BufferPoolManagerInstance : public BufferPoolManager {
   friend class ParallelBufferPoolManager;
+
  public:
   /**
    * Creates a new BufferPoolManagerInstance.
@@ -122,7 +123,7 @@ class BufferPoolManagerInstance : public BufferPoolManager {
    */
   void ValidatePageId(page_id_t page_id) const;
 
-  bool findFrame(frame_id_t *frame_id);
+  bool FindFrame(frame_id_t *frame_id);
 
   /** Number of pages in the buffer pool. */
   const size_t pool_size_;
@@ -150,6 +151,5 @@ class BufferPoolManagerInstance : public BufferPoolManager {
   std::mutex latch_;
 
   size_t pinned_num_;
-
 };
 }  // namespace bustub

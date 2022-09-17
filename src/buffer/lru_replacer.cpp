@@ -25,10 +25,10 @@ LRUReplacer::LRUReplacer(size_t num_pages) {
 }
 
 LRUReplacer::~LRUReplacer() {
-  //释放整个链表的内存
+  // 释放整个链表的内存
   ListNode *temp;
-  for (auto it = head_ -> next_; it != tail_; it = temp) {
-    temp = it -> next_;
+  for (auto it = head_->next_; it != tail_; it = temp) {
+    temp = it->next_;
     delete it;
   }
   delete head_;

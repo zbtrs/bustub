@@ -64,7 +64,7 @@ class HashTableBucketPage {
    */
   auto Remove(KeyType key, ValueType value, KeyComparator cmp) -> bool;
 
-  auto FindElement(KeyType key, ValueType value,KeyComparator cmp) -> bool;
+  auto FindElement(KeyType key, ValueType value, KeyComparator cmp) -> bool;
 
   /**
    * Gets the key at an index in the bucket.
@@ -154,7 +154,6 @@ class HashTableBucketPage {
   char readable_[(BUCKET_ARRAY_SIZE - 1) / 8 + 1];
   // Flexible array member for page data.
   MappingType array_[0];
-
 };
 
 }  // namespace bustub

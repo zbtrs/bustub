@@ -24,8 +24,8 @@ auto HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
   bool flag = false;
   int size = ((BUCKET_ARRAY_SIZE - 1) / 8 + 1) * 8;
   for (int i = 0; i < size; ++i) {
-    if (IsReadable(i) && cmp(key,array_[i].first) == 0) {
-      result ->push_back(array_[i].second);
+    if (IsReadable(i) && cmp(key, array_[i].first) == 0) {
+      result->push_back(array_[i].second);
       flag = true;
     }
   }
@@ -38,7 +38,7 @@ void HashTableBucketPage<KeyType, ValueType, KeyComparator>::GetAllPairs(
   int size = ((BUCKET_ARRAY_SIZE - 1) / 8 + 1) * 8;
   for (int i = 0; i < size; ++i) {
     if (IsReadable(i)) {
-      vec ->push_back(array_[i]);
+      vec->push_back(array_[i]);
     }
   }
 }
@@ -71,7 +71,7 @@ auto HashTableBucketPage<KeyType, ValueType, KeyComparator>::FindElement(KeyType
                                                                          KeyComparator cmp) -> bool {
   int size = ((BUCKET_ARRAY_SIZE - 1) / 8 + 1) * 8;
   for (int i = 0; i < size; ++i) {
-    if (IsReadable(i) && cmp(key,array_[i].first) == 0 && value == array_[i].second) {
+    if (IsReadable(i) && cmp(key, array_[i].first) == 0 && value == array_[i].second) {
       return true;
     }
   }
@@ -80,11 +80,11 @@ auto HashTableBucketPage<KeyType, ValueType, KeyComparator>::FindElement(KeyType
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) -> bool {
-  //如果找到了完全相同的，就返回false
+  // 如果找到了完全相同的，就返回false
   int size = ((BUCKET_ARRAY_SIZE - 1) / 8 + 1) * 8;
   int lastpos = -1;
   for (int i = 0; i < size; ++i) {
-    if (IsReadable(i) && cmp(key,array_[i].first) == 0 && value == array_[i].second) {
+    if (IsReadable(i) && cmp(key, array_[i].first) == 0 && value == array_[i].second) {
       return false;
     }
     if (IsOccupied(i)) {
@@ -92,7 +92,7 @@ auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
     }
   }
   lastpos++;
-  std::pair<KeyType,ValueType> temp = std::make_pair(key,value);
+  std::pair<KeyType, ValueType> temp = std::make_pair(key, value);
   array_[lastpos] = temp;
   SetOccupied(lastpos);
   SetReadable(lastpos);
@@ -104,7 +104,7 @@ auto HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator 
   int pos = -1;
   int size = ((BUCKET_ARRAY_SIZE - 1) / 8 + 1) * 8;
   for (int i = 0; i < size; ++i) {
-    if (IsReadable(i) && cmp(key,array_[i].first) == 0 && value == array_[i].second) {
+    if (IsReadable(i) && cmp(key, array_[i].first) == 0 && value == array_[i].second) {
       pos = i;
       break;
     }
@@ -179,7 +179,6 @@ auto HASH_TABLE_BUCKET_TYPE::NumReadable() -> uint32_t {
   return 0;
 }
 
-
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HASH_TABLE_BUCKET_TYPE::PrintBucket() {
   uint32_t size = 0;
@@ -204,10 +203,9 @@ void HASH_TABLE_BUCKET_TYPE::PrintBucket() {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void HashTableBucketPage<KeyType, ValueType, KeyComparator>::Clear() {
-  memset(occupied_,0,sizeof(occupied_));
-  memset(readable_,0,sizeof(readable_));
+  memset(occupied_, 0, sizeof(occupied_));
+  memset(readable_, 0, sizeof(readable_));
 }
-
 
 // DO NOT REMOVE ANYTHING BELOW THIS LINE
 template class HashTableBucketPage<int, int, IntComparator>;
