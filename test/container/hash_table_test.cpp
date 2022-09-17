@@ -517,7 +517,7 @@ TEST(HashTableVerificationTest, DiskManagerTest) {
   delete bpm;
 }
 
-TEST(HashTableTest, IntegratedConcurrencyTest) {
+TEST(HashTableTest, DISABLED_IntegratedConcurrencyTest) {
   const int num_threads = 5;
   const int num_runs = 50;
 
@@ -595,7 +595,7 @@ TEST(HashTableTest, IntegratedConcurrencyTest) {
   }
 }
 
-TEST(HashTableTest, GrowShrinkConcurrencyTest) {
+TEST(HashTableTest, DISABLED_GrowShrinkConcurrencyTest) {
   const int num_threads = 5;
   const int num_runs = 50;
 

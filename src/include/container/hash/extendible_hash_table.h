@@ -176,6 +176,12 @@ class ExtendibleHashTable {
   void UpdateLittleDirectoryPage(HashTableDirectoryPage *directory_page, page_id_t id0, page_id_t id1, uint32_t i);
   bool CheckMerge(HashTableDirectoryPage *directory_page, uint32_t pid, uint32_t i, page_id_t *pInt);
   bool CheckUpdateGlobalDepth(HashTableDirectoryPage *directory_page);
+  void AddDirectoryRlatch(HashTableDirectoryPage *directory_page);
+  void RemoveDirectoryRlatch(HashTableDirectoryPage *directory_page);
+  void AddDirectoryLatch(HashTableDirectoryPage *directory_page, char ch);
+  void RemoveDirectoryLatch(HashTableDirectoryPage *directory_page, char ch);
+  void AddBucketLatch(HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page, char ch);
+  void RemoveBucketLatch(HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page, char ch);
 };
 
 }  // namespace bustub

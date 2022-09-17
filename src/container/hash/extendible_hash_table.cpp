@@ -92,12 +92,14 @@ auto HASH_TABLE_TYPE::FetchBucketPage(page_id_t bucket_page_id) -> HASH_TABLE_BU
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std::vector<ValueType> *result) -> bool {
+  table_latch_.RLock();
   auto directory_page = FetchDirectoryPage();
   auto bucket_page_id = KeyToPageId(key,directory_page);
   auto bucket_page = FetchBucketPage(bucket_page_id);
   bool flag =  bucket_page ->GetValue(key,comparator_,result);
   buffer_pool_manager_ ->UnpinPage(directory_page_id_, false);
   buffer_pool_manager_ ->UnpinPage(bucket_page_id,false);
+  table_latch_.RUnlock();
 
   return flag;
 }
@@ -107,16 +109,23 @@ auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
+  table_latch_.WLock();
   auto directory_page = FetchDirectoryPage();
+  AddDirectoryLatch(directory_page,'R');
   auto bucket_page_id = KeyToPageId(key,directory_page);
   auto bucket_page = FetchBucketPage(bucket_page_id);
-
+  RemoveDirectoryLatch(directory_page,'R');
   //如果要插入的bucketpage中已经有完全相同的key-value了，不插入
+  AddBucketLatch(bucket_page,'R');
+  reinterpret_cast<Page *>(bucket_page) ->RLatch();
   if (bucket_page->FindElement(key,value,comparator_)) {
+    RemoveBucketLatch(bucket_page,'R');
     buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
     buffer_pool_manager_ ->UnpinPage(bucket_page_id,false);
+    table_latch_.WUnlock();
     return false;
   }
+  //TODO 加page锁
   auto directory_index = KeyToDirectoryIndex(key,directory_page);
   auto limit_size = (1 << ((directory_page ->GetLocalDepth(directory_index)) - 1));
   if (limit_size == static_cast<int>(bucket_page -> GetSize())) {
@@ -145,6 +154,8 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
     buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
     buffer_pool_manager_ ->UnpinPage(bucket_page_id,true);
   }
+  table_latch_.WUnlock();
+
   return true;
 }
 
@@ -158,6 +169,7 @@ auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
+  table_latch_.WLock();
   auto directory_page = FetchDirectoryPage();
   auto bucket_page_id = KeyToPageId(key,directory_page);
   auto bucket_page = FetchBucketPage(bucket_page_id);
@@ -167,12 +179,14 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
   if (!bucket_page ->FindElement(key,value,comparator_) && (!bucket_page ->IsEmpty() || !CheckMerge(directory_page, directory_index, local_depth, &another_bucket_page_id))) {
     buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
     buffer_pool_manager_ ->UnpinPage(bucket_page_id,false);
+    table_latch_.WUnlock();
     return false;
   }
   bucket_page ->Remove(key,value,comparator_);
   if (!bucket_page ->IsEmpty() || !CheckMerge(directory_page, directory_index, local_depth, &another_bucket_page_id)) {
     buffer_pool_manager_ ->UnpinPage(directory_page_id_,false);
     buffer_pool_manager_ ->UnpinPage(bucket_page_id,true);
+    table_latch_.WUnlock();
     return true;
   }
   //try to merge
@@ -183,6 +197,7 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
   }
   buffer_pool_manager_ ->UnpinPage(directory_page_id_,true);
   buffer_pool_manager_ ->UnpinPage(bucket_page_id,true);
+  table_latch_.WUnlock();
 
   return true;
 }
@@ -329,6 +344,46 @@ bool ExtendibleHashTable<KeyType, ValueType, KeyComparator>::CheckUpdateGlobalDe
     }
   }
   return true;
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::AddDirectoryLatch(HashTableDirectoryPage *directory_page,
+                                                                               char ch) {
+  if (ch == 'R') {
+    reinterpret_cast<Page *>(directory_page) ->RLatch();
+  } else {
+    reinterpret_cast<Page *>(directory_page) ->WLatch();
+  }
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::RemoveDirectoryLatch(HashTableDirectoryPage *directory_page,
+                                                                               char ch) {
+  if (ch == 'R') {
+    reinterpret_cast<Page *>(directory_page) ->RUnlatch();
+  } else {
+    reinterpret_cast<Page *>(directory_page) ->WUnlatch();
+  }
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::AddBucketLatch(
+    HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page, char ch) {
+  if (ch == 'R') {
+    reinterpret_cast<Page *>(bucket_page) ->RLatch();
+  } else {
+    reinterpret_cast<Page *>(bucket_page) ->WLatch();
+  }
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void ExtendibleHashTable<KeyType, ValueType, KeyComparator>::RemoveBucketLatch(
+    HashTableBucketPage<KeyType, ValueType, KeyComparator> *bucket_page, char ch) {
+  if (ch == 'R') {
+    reinterpret_cast<Page *>(bucket_page) ->RUnlatch();
+  } else {
+    reinterpret_cast<Page *>(bucket_page) ->WUnlatch();
+  }
 }
 
 /*****************************************************************************
