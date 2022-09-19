@@ -133,6 +133,9 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
   auto limit_size = (1 << ((directory_page->GetLocalDepth(directory_index)) - 1));
   if (limit_size == static_cast<int>(bucket_page->GetSize())) {
     // 如果满了，要进行分裂
+
+    // 先尝试对directory合并
+
     auto last_local_depth = directory_page->GetLocalDepth(directory_index);
     auto new_bucket_page_id =
         SplitBucketPage(bucket_page, directory_page, bucket_page_id, KeyToDirectoryIndex(key, directory_page));

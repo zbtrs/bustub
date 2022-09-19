@@ -171,7 +171,13 @@ void HASH_TABLE_BUCKET_TYPE::SetReadable(uint32_t bucket_idx) {
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::IsFull() -> bool {
-  return false;
+  int size = ((BUCKET_ARRAY_SIZE - 1) / 8 + 1) * 8;
+  for (int i = size - 1; i >= 0; i--) {
+    if (!IsOccupied(i)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
