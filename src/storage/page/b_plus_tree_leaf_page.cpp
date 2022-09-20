@@ -95,7 +95,18 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index) -> const MappingType & {
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator)
     -> int {
-  return 0;
+  if (size_ == 0) {
+    array_[size_] = std::make_pair(key,value);
+  } else {
+    auto index = KeyIndex(key,comparator);
+    for (int i = size_; i > index; --i) {
+      array_[i] = array_[i - 1];
+    }
+    array_[index] = std::make_pair(key,value);
+  }
+
+  ++size_;
+  return size_;
 }
 
 /*****************************************************************************
@@ -124,7 +135,18 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyNFrom(MappingType *items, int size) {}
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::Lookup(const KeyType &key, ValueType *value, const KeyComparator &comparator) const
     -> bool {
-  return false;
+  if (size_ == 0) {
+    return false;
+  }
+  if (comparator(array_[size_ - 1].first,key) < 0) {
+    return false;
+  }
+  auto index = KeyIndex(key,comparator);
+  if (comparator(array_[index].first,key) != 0) {
+    return false;
+  }
+  *value = array_[index].second;
+  return true;
 }
 
 /*****************************************************************************
@@ -171,12 +193,13 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyLastFrom(const MappingType &item) {}
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient) {}
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::CopyFirstFrom(const std::pair<KeyType, ValueType> &item) {}
 
 /*
  * Insert item at the front of my items. Move items accordingly.
  */
-INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyFirstFrom(const MappingType &item) {}
+
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTreeLeafPage<GenericKey<8>, RID, GenericComparator<8>>;

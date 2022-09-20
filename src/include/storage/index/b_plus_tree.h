@@ -71,12 +71,12 @@ class BPlusTree {
   // read data from file and remove one by one
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
   // expose for test purpose
-  auto FindLeafPage(const KeyType &key, bool leftMost = false) -> Page *;
+  auto FindLeafPage(const KeyType &key, bool leftMost = false) -> BPlusTreePage *;
 
  private:
   void StartNewTree(const KeyType &key, const ValueType &value);
 
-  auto InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
+  auto InsertIntoLeaf(BPlusTreePage* node, const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
 
   void InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, BPlusTreePage *new_node,
                         Transaction *transaction = nullptr);
