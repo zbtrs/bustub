@@ -78,11 +78,10 @@ class BPlusTree {
 
   auto InsertIntoLeaf(BPlusTreePage* node, const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
 
-  void InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, BPlusTreePage *new_node,
+  void InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, page_id_t new_page_id,
                         Transaction *transaction = nullptr);
 
-  template <typename N>
-  auto Split(N *node) -> N *;
+  auto Split(BPlusTreePage *node) -> BPlusTreePage *;
 
   template <typename N>
   auto CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr) -> bool;

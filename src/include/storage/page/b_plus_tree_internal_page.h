@@ -46,6 +46,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto Lookup(const KeyType &key, const KeyComparator &comparator) const -> ValueType;
   void PopulateNewRoot(const ValueType &old_value, const KeyType &new_key, const ValueType &new_value);
   auto InsertNodeAfter(const ValueType &old_value, const KeyType &new_key, const ValueType &new_value) -> int;
+  auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> int;
   void Remove(int index);
   auto RemoveAndReturnOnlyChild() -> ValueType;
 
