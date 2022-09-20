@@ -78,7 +78,8 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
-  auto new_root_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(buffer_pool_manager_->NewPage(&root_page_id_, nullptr)->GetData());
+  auto new_root_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(
+      buffer_pool_manager_->NewPage(&root_page_id_, nullptr)->GetData());
   new_root_page->Init(root_page_id_);
   InsertIntoLeaf(new_root_page,key,value);
   buffer_pool_manager_ ->UnpinPage(root_page_id_, true);
@@ -93,8 +94,8 @@ void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
  * keys return false, otherwise return true.
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::InsertIntoLeaf(BPlusTreePage* node, const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
-  // TODO
+auto BPLUSTREE_TYPE::InsertIntoLeaf(BPlusTreePage* node, const KeyType &key, const ValueType &value,
+                                    Transaction *transaction) -> bool {
   auto leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(node);
   ValueType exist_value;
   if (leaf_page ->Lookup(key,&exist_value,comparator_)) {
@@ -123,7 +124,9 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Split(BPlusTreePage *node) -> BPlusTreePage * {
   if (node ->IsLeafPage()) {
     page_id_t new_page_id;
-    auto new_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
+    auto new_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(
+        buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
+    new_page ->Init(new_page_id);
     reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(node) ->MoveHalfTo(new_page);
     auto key = new_page ->KeyAt(0);
     InsertIntoParent(node,key,new_page_id, nullptr);
@@ -132,8 +135,11 @@ auto BPLUSTREE_TYPE::Split(BPlusTreePage *node) -> BPlusTreePage * {
   }
 
   page_id_t new_page_id;
-  auto new_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
-  reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(node) ->MoveHalfTo(new_page,buffer_pool_manager_);
+  auto new_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
+      buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
+  new_page ->Init(new_page_id);
+  reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(node) ->MoveHalfTo(
+      new_page,buffer_pool_manager_);
   auto key = new_page ->KeyAt(0);
   InsertIntoParent(node,key,new_page_id, nullptr);
 
@@ -155,14 +161,23 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
   if (old_node ->IsRootPage()) {
     // TODO:populatenewroot
 
+    if (!old_node ->IsLeafPage()) {
+      buffer_pool_manager_ ->UnpinPage(old_node ->GetPageId(),true);
+    }
     return;
   }
-  auto parent_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(buffer_pool_manager_ ->FetchPage(old_node ->GetParentPageId()));
-  // Unpin?
+  auto parent_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
+      buffer_pool_manager_ ->FetchPage(old_node ->GetParentPageId()));
+  if (!old_node ->IsLeafPage()) {
+    buffer_pool_manager_ ->UnpinPage(old_node ->GetPageId(),true);
+  }
   auto parent_page_size = parent_page ->Insert(key,new_page_id,comparator_);
   if (parent_page_size > internal_max_size_) {
     Split(parent_page);
+  } else {
+    buffer_pool_manager_ ->UnpinPage(parent_page ->GetPageId(),true);
   }
+
 }
 
 /*****************************************************************************
@@ -276,7 +291,8 @@ auto BPLUSTREE_TYPE::FindLeafPage(const KeyType &key, bool leftMost) -> BPlusTre
   while (!find_page ->IsLeafPage()) {
     auto last_page_id = find_page ->GetPageId();
     auto next_find_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(find_page);
-    find_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_ ->FetchPage(next_find_page ->Lookup(key,comparator_)));
+    find_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_ ->FetchPage(
+        next_find_page ->Lookup(key,comparator_)));
 
     buffer_pool_manager_ ->UnpinPage(last_page_id, false);
   }

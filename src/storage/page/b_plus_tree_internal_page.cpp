@@ -126,7 +126,14 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertNodeAfter(const ValueType &old_value,
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient,
-                                                BufferPoolManager *buffer_pool_manager) {}
+                                                BufferPoolManager *buffer_pool_manager) {
+  auto index = size_ / 2;
+  recipient ->SetSize(size_ - index);
+  for (int i = 0; i < size_ - index; ++i) {
+    recipient ->SetItem(i,array_[index + i]);
+  }
+  buffer_pool_manager ->UnpinPage(recipient ->GetPageId(),true);
+}
 
 /* Copy entries into me, starting from {items} and copy {size} entries.
  * Since it is an internal page, for all entries (pages) moved, their parents page now changes to me.
@@ -205,6 +212,38 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *re
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyFirstFrom(const MappingType &pair, BufferPoolManager *buffer_pool_manager) {}
+template <typename KeyType, typename ValueType, typename KeyComparator>
+auto BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::Insert(const KeyType &key, const ValueType &value,
+                                                                      const KeyComparator &comparator) -> int {
+  if (size_ == 0 || comparator(array_[size_ - 1].first,key) < 0) {
+    array_[size_] = std::make_pair(key,value);
+  } else {
+    int l = 0;
+    int r = size_ - 1;
+    int res = r;
+    while (l <= r) {
+      int mid = (l + r) >> 1;
+      if (comparator(array_[mid].first,key) >= 0) {
+        res = mid;
+        r = mid - 1;
+      } else {
+        l = mid + 1;
+      }
+    }
+    for (int i = size_; i > res; i--) {
+      array_[i] = array_[i - 1];
+      array_[res] = std::make_pair(key,value);
+    }
+  }
+
+  ++size_;
+  return size_;
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::SetItem(int index, std::pair<KeyType, ValueType> item) {
+  array_[index] = item;
+}
 
 // valuetype for internalNode should be page id_t
 template class BPlusTreeInternalPage<GenericKey<4>, page_id_t, GenericComparator<4>>;

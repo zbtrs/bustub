@@ -64,5 +64,6 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void CopyFirstFrom(const MappingType &pair, BufferPoolManager *buffer_pool_manager);
   // Flexible array member for page data.
   MappingType array_[0];
+  void SetItem(int index, std::pair<KeyType, ValueType> item);
 };
 }  // namespace bustub

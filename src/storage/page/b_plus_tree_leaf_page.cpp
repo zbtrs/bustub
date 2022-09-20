@@ -116,7 +116,13 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &val
  * Remove half of key & value pairs from this page to "recipient" page
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient) {}
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient) {
+  auto index = size_ / 2;
+  recipient ->SetSize(size_ - index);
+  for (int i = 0; i < size_ - index; ++i) {
+    recipient ->SetItem(i,array_[index + i]);
+  }
+}
 
 /*
  * Copy starting from items, and copy {size} number of elements into me.
@@ -195,6 +201,12 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient) {}
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::CopyFirstFrom(const std::pair<KeyType, ValueType> &item) {}
+
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::SetItem(int index, std::pair<KeyType, ValueType> item) {
+  array_[index] = item;
+}
 
 /*
  * Insert item at the front of my items. Move items accordingly.
