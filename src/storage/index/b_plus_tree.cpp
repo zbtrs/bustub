@@ -133,14 +133,14 @@ auto BPLUSTREE_TYPE::Split(BPlusTreePage *node) -> BPlusTreePage * {
 
     return new_page;
   }
+  // TODO:update key
 
   page_id_t new_page_id;
   auto new_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
       buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
   new_page ->Init(new_page_id);
-  reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(node) ->MoveHalfTo(
+  auto key = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(node) ->MoveHalfTo(
       new_page,buffer_pool_manager_);
-  auto key = new_page ->KeyAt(0);
   InsertIntoParent(node,key,new_page_id, nullptr);
 
   return new_page;

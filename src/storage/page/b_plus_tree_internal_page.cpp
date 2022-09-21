@@ -125,14 +125,18 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertNodeAfter(const ValueType &old_value,
  * Remove half of key & value pairs from this page to "recipient" page
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient,
-                                                BufferPoolManager *buffer_pool_manager) {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient,
+                                                BufferPoolManager *buffer_pool_manager) -> KeyType {
   auto index = size_ / 2;
   recipient ->SetSize(size_ - index);
-  for (int i = 0; i < size_ - index; ++i) {
-    recipient ->SetItem(i,array_[index + i]);
+  recipient ->SetItem(0,std::make_pair(array_[index].first,array_[index].second));
+  for (int i = index + 1; i < size_; ++i) {
+    recipient ->SetItem(i - index,std::make_pair(array_[i].first,array_[i].second));
   }
   buffer_pool_manager ->UnpinPage(recipient ->GetPageId(),true);
+  size_ = index;
+
+  return array_[index].first;
 }
 
 /* Copy entries into me, starting from {items} and copy {size} entries.
@@ -215,10 +219,10 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyFirstFrom(const MappingType &pair, Buff
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::Insert(const KeyType &key, const ValueType &value,
                                                                       const KeyComparator &comparator) -> int {
-  if (size_ == 0 || comparator(array_[size_ - 1].first,key) < 0) {
+  if (size_ <= 1 || comparator(array_[size_ - 1].first,key) < 0) {
     array_[size_] = std::make_pair(key,value);
   } else {
-    int l = 0;
+    int l = 1;
     int r = size_ - 1;
     int res = r;
     while (l <= r) {

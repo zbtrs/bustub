@@ -122,6 +122,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient) {
   for (int i = 0; i < size_ - index; ++i) {
     recipient ->SetItem(i,array_[index + i]);
   }
+  size_ = index;
 }
 
 /*
