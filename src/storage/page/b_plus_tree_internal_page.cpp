@@ -106,7 +106,11 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Lookup(const KeyType &key, const KeyCompara
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::PopulateNewRoot(const ValueType &old_value, const KeyType &new_key,
-                                                     const ValueType &new_value) {}
+                                                     const ValueType &new_value) {
+  size_ = 2;
+  array_[0].second = old_value;
+  array_[1] = std::make_pair(new_key,new_value);
+}
 /*
  * Insert new_key & new_value pair right after the pair with its value ==
  * old_value

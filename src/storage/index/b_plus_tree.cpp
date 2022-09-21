@@ -133,8 +133,6 @@ auto BPLUSTREE_TYPE::Split(BPlusTreePage *node) -> BPlusTreePage * {
 
     return new_page;
   }
-  // TODO:update key
-
   page_id_t new_page_id;
   auto new_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
       buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
@@ -159,8 +157,10 @@ INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, page_id_t new_page_id,
                                       Transaction *transaction) {
   if (old_node ->IsRootPage()) {
-    // TODO:populatenewroot
-
+    auto new_root_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(buffer_pool_manager_ ->NewPage(&root_page_id_, nullptr)->GetData());
+    new_root_page ->Init(root_page_id_);
+    new_root_page ->PopulateNewRoot(old_node ->GetPageId(),key,new_page_id);
+    buffer_pool_manager_ ->UnpinPage(root_page_id_,true);
     if (!old_node ->IsLeafPage()) {
       buffer_pool_manager_ ->UnpinPage(old_node ->GetPageId(),true);
     }
