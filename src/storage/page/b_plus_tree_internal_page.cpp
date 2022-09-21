@@ -252,6 +252,15 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::SetItem(int index, std::pair<KeyType, ValueType> item) {
   array_[index] = item;
 }
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::UpdateParentPageId(
+    BufferPoolManager *buffer_pool_manager) {
+  for (int i = 0; i < size_; ++i) {
+    auto child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager ->FetchPage(array_[i].second));
+    child_page ->SetParentPageId(page_id_);
+    buffer_pool_manager ->UnpinPage(array_[i].second,true);
+  }
+}
 
 // valuetype for internalNode should be page id_t
 template class BPlusTreeInternalPage<GenericKey<4>, page_id_t, GenericComparator<4>>;

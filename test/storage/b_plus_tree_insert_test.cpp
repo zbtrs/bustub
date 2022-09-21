@@ -17,8 +17,13 @@
 #include "gtest/gtest.h"
 #include "storage/index/b_plus_tree.h"
 #include "test_util.h"  // NOLINT
+#include "storage/disk/disk_manager.h"
+#include "storage/page/hash_table_bucket_page.h"
+#include "storage/page/hash_table_directory_page.h"
+#include "storage/index/int_comparator.h"
 
 namespace bustub {
+
 
 TEST(BPlusTreeTests, InsertTest1) {
   // create KeyComparator and index schema
@@ -40,6 +45,9 @@ TEST(BPlusTreeTests, InsertTest1) {
   (void)header_page;
 
   std::vector<int64_t> keys = {1, 2, 3, 4, 5};
+  for (int i = 6; i <= 100; i++) {
+    keys.push_back(i);
+  }
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
     rid.Set(static_cast<int32_t>(key >> 32), value);

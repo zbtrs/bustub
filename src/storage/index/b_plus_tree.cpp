@@ -90,6 +90,7 @@ void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
       buffer_pool_manager_->NewPage(&root_page_id_, nullptr)->GetData());
   new_root_page->Init(root_page_id_);
   new_root_page->SetPageType(IndexPageType::LEAF_PAGE);
+  new_root_page->SetNextPageId(INVALID_PAGE_ID);
   InsertIntoLeaf(new_root_page,key,value);
   buffer_pool_manager_ ->UnpinPage(root_page_id_, true);
 }
@@ -137,9 +138,10 @@ auto BPLUSTREE_TYPE::Split(BPlusTreePage *node) -> BPlusTreePage * {
     auto new_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(
         buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
     new_page ->Init(new_page_id);
-    new_page->SetPageType(IndexPageType::LEAF_PAGE);
+    new_page ->SetPageType(IndexPageType::LEAF_PAGE);
+    new_page ->SetParentPageId(node ->GetParentPageId());
     reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(node) ->MoveHalfTo(new_page);
-    auto key = new_page ->KeyAt(0);
+    KeyType key = new_page ->KeyAt(0);
     InsertIntoParent(node,key,new_page_id, nullptr);
 
     return new_page;
@@ -148,9 +150,11 @@ auto BPLUSTREE_TYPE::Split(BPlusTreePage *node) -> BPlusTreePage * {
   auto new_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
       buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
   new_page ->Init(new_page_id);
-  new_page->SetPageType(IndexPageType::INTERNAL_PAGE);
+  new_page ->SetPageType(IndexPageType::INTERNAL_PAGE);
+  new_page ->SetParentPageId(node ->GetParentPageId());
   auto key = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(node) ->MoveHalfTo(
       new_page,buffer_pool_manager_);
+  new_page ->UpdateParentPageId(buffer_pool_manager_);
   InsertIntoParent(node,key,new_page_id, nullptr);
 
   return new_page;
@@ -174,7 +178,11 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
     new_root_page ->Init(root_page_id_);
     new_root_page ->SetPageType(IndexPageType::INTERNAL_PAGE);
     new_root_page ->PopulateNewRoot(old_node ->GetPageId(),key,new_page_id);
+    old_node ->SetParentPageId(root_page_id_);
     buffer_pool_manager_ ->UnpinPage(root_page_id_,true);
+    auto new_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_ ->FetchPage(new_page_id));
+    new_page ->SetParentPageId(root_page_id_);
+    buffer_pool_manager_ ->UnpinPage(new_page_id,true);
     if (!old_node ->IsLeafPage()) {
       buffer_pool_manager_ ->UnpinPage(old_node ->GetPageId(),true);
     }

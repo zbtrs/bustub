@@ -95,7 +95,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index) -> const MappingType & {
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator)
     -> int {
-  if (size_ == 0) {
+  if (size_ == 0 || comparator(array_[size_ - 1].first,key) < 0) {
     array_[size_] = std::make_pair(key,value);
   } else {
     auto index = KeyIndex(key,comparator);
