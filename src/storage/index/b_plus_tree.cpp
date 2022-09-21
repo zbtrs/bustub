@@ -49,6 +49,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   ValueType res;
   bool flag = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(leaf_page) ->Lookup(
       key,&res,comparator_);
+  buffer_pool_manager_ ->UnpinPage(leaf_page ->GetPageId());
   if (flag){
     result ->push_back(res);
     return true;
