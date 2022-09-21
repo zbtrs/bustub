@@ -93,7 +93,6 @@ void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
   new_root_page->SetPageType(IndexPageType::LEAF_PAGE);
   new_root_page->SetNextPageId(INVALID_PAGE_ID);
   InsertIntoLeaf(new_root_page,key,value);
-  buffer_pool_manager_ ->UnpinPage(root_page_id_, true);
 }
 
 /*
