@@ -45,7 +45,7 @@ TEST(BPlusTreeTests, InsertTest1) {
   (void)header_page;
 
   std::vector<int64_t> keys = {1, 2, 3, 4, 5};
-  for (int i = 6; i <= 50; i++) {
+  for (int i = 6; i <= 500; i++) {
     keys.push_back(i);
   }
   for (auto key : keys) {
