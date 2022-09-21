@@ -156,7 +156,7 @@ auto BPLUSTREE_TYPE::Split(BPlusTreePage *node) -> BPlusTreePage * {
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, page_id_t new_page_id,
                                       Transaction *transaction) {
-  if (old_node ->IsRootPage()) {
+  if (old_node ->GetPageId() == root_page_id_) {
     auto new_root_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(buffer_pool_manager_ ->NewPage(&root_page_id_, nullptr)->GetData());
     new_root_page ->Init(root_page_id_);
     new_root_page ->PopulateNewRoot(old_node ->GetPageId(),key,new_page_id);
