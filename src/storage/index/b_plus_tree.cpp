@@ -45,6 +45,13 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
+  auto leaf_page = FindLeafPage(key);
+  ValueType res;
+  bool flag = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(leaf_page) ->Lookup(key,&res,comparator_);
+  if (flag){
+    result ->push_back(res);
+    return true;
+  }
   return false;
 }
 
@@ -66,10 +73,10 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   }
   auto leaf_page = FindLeafPage(key);
   bool flag = InsertIntoLeaf(leaf_page,key,value,transaction);
-  buffer_pool_manager_ ->UnpinPage(leaf_page ->GetPageId(),flag);
 
   return flag;
 }
+
 /*
  * Insert constant key & value pair into an empty tree
  * User needs to first ask for new page from buffer pool manager(NOTICE: throw
@@ -109,6 +116,7 @@ auto BPLUSTREE_TYPE::InsertIntoLeaf(BPlusTreePage* node, const KeyType &key, con
   new_leaf_page ->SetNextPageId(leaf_page ->GetNextPageId());
   leaf_page ->SetNextPageId(new_leaf_page ->GetPageId());
   buffer_pool_manager_ ->UnpinPage(new_leaf_page ->GetPageId(),true);
+  buffer_pool_manager_ ->UnpinPage(leaf_page ->GetPageId(),true);
 
   return true;
 }
