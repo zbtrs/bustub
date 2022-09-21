@@ -47,7 +47,8 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
   auto leaf_page = FindLeafPage(key);
   ValueType res;
-  bool flag = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(leaf_page) ->Lookup(key,&res,comparator_);
+  bool flag = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(leaf_page) ->Lookup(
+      key,&res,comparator_);
   if (flag){
     result ->push_back(res);
     return true;
@@ -88,6 +89,7 @@ void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
   auto new_root_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(
       buffer_pool_manager_->NewPage(&root_page_id_, nullptr)->GetData());
   new_root_page->Init(root_page_id_);
+  new_root_page->SetPageType(IndexPageType::LEAF_PAGE);
   InsertIntoLeaf(new_root_page,key,value);
   buffer_pool_manager_ ->UnpinPage(root_page_id_, true);
 }
@@ -135,6 +137,7 @@ auto BPLUSTREE_TYPE::Split(BPlusTreePage *node) -> BPlusTreePage * {
     auto new_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(
         buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
     new_page ->Init(new_page_id);
+    new_page->SetPageType(IndexPageType::LEAF_PAGE);
     reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(node) ->MoveHalfTo(new_page);
     auto key = new_page ->KeyAt(0);
     InsertIntoParent(node,key,new_page_id, nullptr);
@@ -145,6 +148,7 @@ auto BPLUSTREE_TYPE::Split(BPlusTreePage *node) -> BPlusTreePage * {
   auto new_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
       buffer_pool_manager_->NewPage(&new_page_id, nullptr)->GetData());
   new_page ->Init(new_page_id);
+  new_page->SetPageType(IndexPageType::INTERNAL_PAGE);
   auto key = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(node) ->MoveHalfTo(
       new_page,buffer_pool_manager_);
   InsertIntoParent(node,key,new_page_id, nullptr);
@@ -165,8 +169,10 @@ INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, page_id_t new_page_id,
                                       Transaction *transaction) {
   if (old_node ->GetPageId() == root_page_id_) {
-    auto new_root_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(buffer_pool_manager_ ->NewPage(&root_page_id_, nullptr)->GetData());
+    auto new_root_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
+        buffer_pool_manager_ ->NewPage(&root_page_id_, nullptr)->GetData());
     new_root_page ->Init(root_page_id_);
+    new_root_page ->SetPageType(IndexPageType::INTERNAL_PAGE);
     new_root_page ->PopulateNewRoot(old_node ->GetPageId(),key,new_page_id);
     buffer_pool_manager_ ->UnpinPage(root_page_id_,true);
     if (!old_node ->IsLeafPage()) {
