@@ -167,7 +167,29 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Lookup(const KeyType &key, ValueType *value, co
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveAndDeleteRecord(const KeyType &key, const KeyComparator &comparator) -> int {
-  return 0;
+  if (size_ == 0) {
+    return 0;
+  }
+  int l = 0;
+  int r = size_ - 1;
+  int res = r;
+  while (l <= r) {
+    int mid = (l + r) >> 1;
+    if (comparator(array_[mid].first,key) >= 0) {
+      res = mid;
+      r = mid - 1;
+    } else {
+      l = mid + 1;
+    }
+  }
+  if (comparator(array_[res].first,key) != 0) {
+    return size_;
+  }
+  for (int i = res; i + 1 < size_; ++i) {
+    array_[i] = array_[i + 1];
+  }
+  --size_;
+  return size_;
 }
 
 /*****************************************************************************

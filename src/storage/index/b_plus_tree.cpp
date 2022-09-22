@@ -219,7 +219,13 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
  * necessary.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {}
+void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
+  if (IsEmpty()) {
+    return;
+  }
+  auto leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(FindLeafPage(key));
+
+}
 
 /*
  * User needs to first find the sibling of input page. If sibling's size + input
@@ -358,7 +364,6 @@ void BPLUSTREE_TYPE::InsertFromFile(const std::string &file_name, Transaction *t
   std::ifstream input(file_name);
   while (input) {
     input >> key;
-
     KeyType index_key;
     index_key.SetFromInteger(key);
     RID rid(key);
