@@ -224,7 +224,12 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
     return;
   }
   auto leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(FindLeafPage(key));
-
+  auto leaf_page_size = leaf_page ->RemoveAndDeleteRecord(key,comparator_);
+  if (leaf_page_size >= leaf_max_size_ / 2 - 1) {
+    buffer_pool_manager_ ->UnpinPage(leaf_page ->GetPageId(), true);
+    return;
+  }
+  CoalesceOrRedistribute(leaf_page,transaction);
 }
 
 /*
@@ -237,7 +242,12 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
 auto BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) -> bool {
-  return false;
+  auto node_page = reinterpret_cast<BPlusTreePage *>(node);
+  if (node_page ->GetPageId() == root_page_id_) {
+    return AdjustRoot(node_page);
+  }
+  // TODO unpin
+
 }
 
 /*
@@ -283,7 +293,29 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {}
  * happend
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) -> bool { return false; }
+auto BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) -> bool {
+  if (old_root_node ->IsLeafPage()) {
+    if (old_root_node ->GetSize() == 0) {
+      auto old_root_node_id = old_root_node ->GetPageId();
+      buffer_pool_manager_ ->UnpinPage(old_root_node_id, true);
+      buffer_pool_manager_ ->DeletePage(old_root_node_id);
+      return true;
+    }
+    buffer_pool_manager_ ->UnpinPage(old_root_node ->GetPageId(),true);
+    return false;
+  }
+  if (old_root_node ->GetSize() > 1) {
+    buffer_pool_manager_ ->UnpinPage(old_root_node ->GetPageId(),true);
+    return false;
+  }
+  auto new_root_page_id = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
+                              old_root_node) ->ValueAt(0);
+  buffer_pool_manager_ ->UnpinPage(root_page_id_, true);
+  buffer_pool_manager_ ->DeletePage(root_page_id_);
+  root_page_id_ = new_root_page_id;
+
+  return true;
+}
 
 /*****************************************************************************
  * INDEX ITERATOR
