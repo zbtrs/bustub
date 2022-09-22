@@ -50,20 +50,22 @@ TEST(BPlusTreeTests, ScaleTest) {
   auto header_page = bpm->NewPage(&page_id);
   (void)header_page;
 
-  int64_t scale = 15;
+  int64_t scale = 10005;
   std::vector<int64_t> keys;
+
   for (int64_t key = 1; key < scale; key++) {
     keys.push_back(key);
   }
 
 
-  int i = 0;
   // randomized the insertion order
   auto rng = std::default_random_engine{};
   std::shuffle(keys.begin(), keys.end(), rng);
   for (auto key : keys) {
     std::cout << key << " ";
   }
+
+  int i = 0;
   for (auto key : keys) {
     ++i;
     int64_t value = key & 0xFFFFFFFF;

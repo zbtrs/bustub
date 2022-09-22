@@ -240,8 +240,8 @@ auto BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::Insert(const KeyT
     }
     for (int i = size_; i > res; i--) {
       array_[i] = array_[i - 1];
-      array_[res] = std::make_pair(key,value);
     }
+    array_[res] = std::make_pair(key,value);
   }
 
   ++size_;
