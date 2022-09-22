@@ -48,6 +48,8 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   // helper methods
   auto GetNextPageId() const -> page_id_t;
   void SetNextPageId(page_id_t next_page_id);
+  auto GetLastPageId() const -> page_id_t;
+  void SetLastPageId(page_id_t last_page_id);
   auto KeyAt(int index) const -> KeyType;
   auto KeyIndex(const KeyType &key, const KeyComparator &comparator) const -> int;
   auto GetItem(int index) -> const MappingType &;
@@ -68,6 +70,7 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void CopyLastFrom(const MappingType &item);
   void CopyFirstFrom(const MappingType &item);
   page_id_t next_page_id_;
+  page_id_t last_page_id_;
   // Flexible array member for page data.
   MappingType array_[0];
   void SetItem(int index, std::pair<KeyType, ValueType> item);

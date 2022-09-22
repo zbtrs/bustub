@@ -92,6 +92,7 @@ void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
   new_root_page->Init(root_page_id_,INVALID_PAGE_ID,leaf_max_size_);
   new_root_page->SetPageType(IndexPageType::LEAF_PAGE);
   new_root_page->SetNextPageId(INVALID_PAGE_ID);
+  new_root_page->SetLastPageId(INVALID_PAGE_ID);
   InsertIntoLeaf(new_root_page,key,value);
 }
 
@@ -120,6 +121,10 @@ auto BPLUSTREE_TYPE::InsertIntoLeaf(BPlusTreePage* node, const KeyType &key, con
   auto new_leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(Split(leaf_page));
   new_leaf_page ->SetNextPageId(leaf_page ->GetNextPageId());
   leaf_page ->SetNextPageId(new_leaf_page ->GetPageId());
+  new_leaf_page ->SetLastPageId(leaf_page ->GetPageId());
+  auto right_new_leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(buffer_pool_manager_ ->FetchPage(new_leaf_page ->GetNextPageId()));
+  right_new_leaf_page ->SetLastPageId(new_leaf_page ->GetPageId());
+  buffer_pool_manager_ ->UnpinPage(right_new_leaf_page ->GetPageId(),true);
   buffer_pool_manager_ ->UnpinPage(new_leaf_page ->GetPageId(),true);
   buffer_pool_manager_ ->UnpinPage(leaf_page ->GetPageId(),true);
 

@@ -208,6 +208,14 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 void BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::SetItem(int index, std::pair<KeyType, ValueType> item) {
   array_[index] = item;
 }
+template <typename KeyType, typename ValueType, typename KeyComparator>
+auto BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::GetLastPageId() const -> page_id_t {
+  return last_page_id_;
+}
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::SetLastPageId(page_id_t last_page_id) {
+  last_page_id_ = last_page_id;
+}
 
 /*
  * Insert item at the front of my items. Move items accordingly.
