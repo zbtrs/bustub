@@ -236,5 +236,16 @@ auto BufferPoolManagerInstance::AllocatePage() -> page_id_t {
 void BufferPoolManagerInstance::ValidatePageId(const page_id_t page_id) const {
   assert(page_id % num_instances_ == instance_index_);  // allocated pages mod back to this BPI
 }
+auto BufferPoolManagerInstance::Count() -> int {
+  latch_.lock();
+  int tot = 0;
+  for (int i = 0; i < static_cast<int>(pool_size_); ++i) {
+    if (pages_[i].pin_count_ > 0) {
+      tot++;
+    }
+  }
+  latch_.unlock();
+  return tot;
+}
 
 }  // namespace bustub

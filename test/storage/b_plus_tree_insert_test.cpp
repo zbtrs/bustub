@@ -38,9 +38,9 @@ TEST(BPlusTreeTests, ScaleTest) {
   GenericComparator<8> comparator(key_schema.get());
 
   DiskManager *disk_manager = new DiskManager("test.db");
-  BufferPoolManager *bpm = new BufferPoolManagerInstance(30, disk_manager);
+  BufferPoolManagerInstance *bpm = new BufferPoolManagerInstance(30, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator,3,4);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -50,22 +50,27 @@ TEST(BPlusTreeTests, ScaleTest) {
   auto header_page = bpm->NewPage(&page_id);
   (void)header_page;
 
-  int64_t scale = 3684;
+  int64_t scale = 15;
   std::vector<int64_t> keys;
   for (int64_t key = 1; key < scale; key++) {
     keys.push_back(key);
   }
 
+
   int i = 0;
   // randomized the insertion order
-  //auto rng = std::default_random_engine{};
-  //std::shuffle(keys.begin(), keys.end(), rng);
+  auto rng = std::default_random_engine{};
+  std::shuffle(keys.begin(), keys.end(), rng);
+  for (auto key : keys) {
+    std::cout << key << " ";
+  }
   for (auto key : keys) {
     ++i;
     int64_t value = key & 0xFFFFFFFF;
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
+    //int temp = bpm ->Count();
   }
   std::vector<RID> rids;
   for (auto key : keys) {

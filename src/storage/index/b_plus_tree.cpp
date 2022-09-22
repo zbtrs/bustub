@@ -109,10 +109,12 @@ auto BPLUSTREE_TYPE::InsertIntoLeaf(BPlusTreePage* node, const KeyType &key, con
   auto leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(node);
   ValueType exist_value;
   if (leaf_page ->Lookup(key,&exist_value,comparator_)) {
+    buffer_pool_manager_ ->UnpinPage(leaf_page ->GetPageId(),false);
     return false;
   }
   auto leaf_page_size = leaf_page ->Insert(key,value,comparator_);
   if (leaf_page_size < leaf_max_size_) {
+    buffer_pool_manager_ ->UnpinPage(leaf_page ->GetPageId(),true);
     return true;
   }
   auto new_leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(Split(leaf_page));
@@ -193,7 +195,8 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
   }
   auto parent_page_size = parent_page ->Insert(key,new_page_id,comparator_);
   if (parent_page_size >= internal_max_size_) {
-    Split(parent_page);
+    auto new_page = Split(parent_page);
+    buffer_pool_manager_ ->UnpinPage(new_page ->GetPageId(),true);
   } else {
     buffer_pool_manager_ ->UnpinPage(parent_page ->GetPageId(),true);
   }

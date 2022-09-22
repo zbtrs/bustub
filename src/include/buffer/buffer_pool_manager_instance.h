@@ -60,6 +60,8 @@ class BufferPoolManagerInstance : public BufferPoolManager {
   /** @return pointer to all the pages in the buffer pool */
   auto GetPages() -> Page * { return pages_; }
 
+  auto Count() -> int;
+
  protected:
   /**
    * Fetch the requested page from the buffer pool.
