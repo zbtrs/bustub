@@ -56,6 +56,7 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> int;
   auto Lookup(const KeyType &key, ValueType *value, const KeyComparator &comparator) const -> bool;
   auto RemoveAndDeleteRecord(const KeyType &key, const KeyComparator &comparator) -> int;
+  void RemoveIndexedRecord(int index);
 
   // Split and Merge utility methods
   void MoveHalfTo(BPlusTreeLeafPage *recipient);

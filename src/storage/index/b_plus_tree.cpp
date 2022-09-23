@@ -332,7 +332,13 @@ INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
 void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node,
                                   BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *parent_page, int index) {
-   // TODO:unpin neighbor_node,node,parent_paage
+  // index == 0:redistribute with left sibling; index == 1:redistribute with right sibling
+  // TODO:unpin neighbor_node,node,parent_page
+  if (index == 0) {
+
+  } else {
+
+  }
 
 }
 /*
