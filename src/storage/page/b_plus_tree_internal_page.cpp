@@ -262,6 +262,30 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::UpdateParentPageI
   }
 }
 
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::FindSiblings(KeyType key, KeyComparator comparator,
+                                                                            page_id_t *left_sibling_page_id,
+                                                                            page_id_t *right_sibling_page_id) {
+  int l = 1;
+  int r = size_ - 1;
+  int res = r;
+  while (l <= r) {
+    int mid = (l + r) >> 1;
+    if (comparator(array_[mid].first,key) >= 0) {
+      res = mid;
+      r = mid - 1;
+    } else {
+      l = mid + 1;
+    }
+  }
+  if (res >= 1) {
+    *left_sibling_page_id = array_[res - 1].second;
+  }
+  if (res + 1 < size_) {
+    *right_sibling_page_id = array_[res + 1].second;
+  }
+}
+
 // valuetype for internalNode should be page id_t
 template class BPlusTreeInternalPage<GenericKey<4>, page_id_t, GenericComparator<4>>;
 template class BPlusTreeInternalPage<GenericKey<8>, page_id_t, GenericComparator<8>>;
