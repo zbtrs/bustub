@@ -84,7 +84,7 @@ class BPlusTree {
   auto Split(BPlusTreePage *node) -> BPlusTreePage *;
 
   template <typename N>
-  auto CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr) -> bool;
+  auto CoalesceOrRedistribute(N *node, KeyType min_key, Transaction *transaction = nullptr) -> bool;
 
   template <typename N>
   auto Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
