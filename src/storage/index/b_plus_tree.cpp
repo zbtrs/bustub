@@ -343,16 +343,41 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node,
     if (opt == 0) {
       neighbor_node_page ->MoveLastToFrontOf(node_page);
       parent_page ->SetKeyAt(index - 1,neighbor_node_page ->KeyAt(0));
+      if (index - 1 == 0) {
+        RecursiveUpdate(parent_page ->GetParentPageId());
+      }
     } else {
       neighbor_node_page ->MoveFirstToEndOf(node_page);
       parent_page ->SetKeyAt(index + 1,neighbor_node_page ->KeyAt(0));
     }
     parent_page ->SetKeyAt(index,node_page ->KeyAt(0));
+    if (index == 0) {
+      RecursiveUpdate(parent_page ->GetParentPageId());
+    }
   } else {
     // internal node
+    auto neighbor_node_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(neighbor_node);
+    auto node_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(node);
+    auto parent_key = parent_page ->KeyAt(index);
+    if (opt == 1) {
+      auto neighbor_key = neighbor_node_page ->KeyAt(1);
+      neighbor_node_page ->MoveFirstToEndOf(node_page);
+      node_page ->SetKeyAt(node_page ->GetSize() - 1,parent_key);
+      parent_page ->SetKeyAt(index,neighbor_key);
+    } else {
+      auto neighbor_key = neighbor_node_page ->KeyAt(neighbor_node_page ->GetSize() - 1);
+      neighbor_node_page ->MoveLastToFrontOf(node_page);
+      node_page ->SetKeyAt(1,parent_key);
+      parent_page ->SetKeyAt(index,neighbor_key);
+    }
 
+    if (index == 0) {
+      RecursiveUpdate(parent_page ->GetParentPageId());
+    }
   }
-
+  buffer_pool_manager_ ->UnpinPage(neighbor_node ->GetPageId(),true);
+  buffer_pool_manager_ ->UnpinPage(node ->GetPageId(),true);
+  buffer_pool_manager_ ->UnpinPage(parent_page ->GetPageId(),true);
 }
 /*
  * Update root page if necessary
