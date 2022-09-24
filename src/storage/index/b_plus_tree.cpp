@@ -344,7 +344,7 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node,
       neighbor_node_page ->MoveLastToFrontOf(node_page);
       parent_page ->SetKeyAt(index - 1,neighbor_node_page ->KeyAt(0));
       if (index - 1 == 0) {
-        RecursiveUpdate(parent_page ->GetParentPageId());
+        RecursiveUpdate(parent_page->KeyAt(0), parent_page->GetParentPageId());
       }
     } else {
       neighbor_node_page ->MoveFirstToEndOf(node_page);
@@ -352,7 +352,7 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node,
     }
     parent_page ->SetKeyAt(index,node_page ->KeyAt(0));
     if (index == 0) {
-      RecursiveUpdate(parent_page ->GetParentPageId());
+      RecursiveUpdate(parent_page->KeyAt(0), parent_page->GetParentPageId());
     }
   } else {
     // internal node
@@ -371,8 +371,8 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node,
       parent_page ->SetKeyAt(index,neighbor_key);
     }
 
-    if (index == 0) {
-      RecursiveUpdate(parent_page ->GetParentPageId());
+    if (index == 1) {
+      RecursiveUpdate(parent_page->KeyAt(1), parent_page->GetParentPageId());
     }
   }
   buffer_pool_manager_ ->UnpinPage(neighbor_node ->GetPageId(),true);
@@ -668,10 +668,34 @@ void BPLUSTREE_TYPE::ToString(BPlusTreePage *page, BufferPoolManager *bpm) const
   }
   bpm->UnpinPage(page->GetPageId(), false);
 }
+
 template <typename KeyType, typename ValueType, typename KeyComparator>
 void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveInternalPage(
     BPlusTreeInternalPage<KeyType, ValueType, KeyComparator> *node_page, Transaction *transaction) {
   // TODO
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTree<KeyType, ValueType, KeyComparator>::RecursiveUpdate(KeyType key, page_id_t page_id) {
+  if (page_id == INVALID_PAGE_ID) {
+    return;
+  }
+  auto update_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
+      buffer_pool_manager_ ->FetchPage(page_id));
+  update_page ->SetKeyAt(1,key);
+  while (update_page ->GetPageId() != root_page_id_) {
+    auto parent_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(
+        buffer_pool_manager_ ->FetchPage(update_page ->GetParentPageId()));
+    if (parent_page ->ValueAt(1) != update_page ->GetPageId()) {
+      buffer_pool_manager_ ->UnpinPage(parent_page ->GetPageId(), false);
+      buffer_pool_manager_ ->UnpinPage(update_page ->GetPageId(),true);
+      return;
+    }
+    parent_page ->SetKeyAt(1,update_page ->KeyAt(1));
+    buffer_pool_manager_ ->UnpinPage(update_page ->GetPageId(),true);
+    update_page = parent_page;
+  }
+  buffer_pool_manager_ ->UnpinPage(update_page ->GetPageId(), true);
 }
 
 template class BPlusTree<GenericKey<4>, RID, GenericComparator<4>>;

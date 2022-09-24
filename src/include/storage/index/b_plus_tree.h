@@ -112,6 +112,7 @@ class BPlusTree {
   int internal_max_size_;
   void RemoveInternalPage(BPlusTreeInternalPage<KeyType, ValueType, KeyComparator> *node_page,
                           Transaction *transaction);
+  void RecursiveUpdate(KeyType key, page_id_t page_id);
 };
 
 }  // namespace bustub
