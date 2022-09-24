@@ -91,7 +91,8 @@ class BPlusTree {
                 int index, Transaction *transaction = nullptr) -> bool;
 
   template <typename N>
-  void Redistribute(N *neighbor_node, N *node, BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *parent_page, int index);
+  void Redistribute(N *neighbor_node, N *node, BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *parent_page,
+                    int opt, int index);
 
   auto AdjustRoot(BPlusTreePage *node) -> bool;
 

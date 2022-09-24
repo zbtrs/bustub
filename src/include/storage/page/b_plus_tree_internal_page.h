@@ -61,7 +61,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void UpdateParentPageId(BufferPoolManager *buffer_pool_manager);
 
   void FindSiblings(KeyType key, KeyComparator comparator, page_id_t *left_sibling_page_id,
-                    page_id_t *right_sibling_page_id);
+                    page_id_t *right_sibling_page_id, int *index);
 
  private:
   void CopyNFrom(MappingType *items, int size, BufferPoolManager *buffer_pool_manager);

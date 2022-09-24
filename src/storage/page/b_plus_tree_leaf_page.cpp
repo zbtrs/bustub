@@ -209,21 +209,44 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *recipient) {}
  * Remove the first key & value pair from this page to "recipient" page.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient) {}
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient) {
+  auto element = array_[0];
+  for (int i = 0; i + 1 < size_; ++i) {
+    array_[i] = array_[i + 1];
+  }
+  size_--;
+  recipient ->CopyLastFrom(element);
+}
 
 /*
  * Copy the item into the end of my item list. (Append item to my array)
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyLastFrom(const MappingType &item) {}
+void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyLastFrom(const MappingType &item) {
+  array_[size_] = item;
+  size_++;
+}
 
 /*
  * Remove the last key & value pair from this page to "recipient" page.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient) {}
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient) {
+  auto element = array_[size_ - 1];
+  size_--;
+  recipient ->CopyFirstFrom(element);
+}
+
+
+
 template <typename KeyType, typename ValueType, typename KeyComparator>
-void BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::CopyFirstFrom(const std::pair<KeyType, ValueType> &item) {}
+void BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::CopyFirstFrom(const std::pair<KeyType, ValueType> &item) {
+  for (int i = size_; i > 0; i--) {
+    array_[i] = array_[i - 1];
+  }
+  array_[0] = item;
+  size_++;
+}
 
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -231,13 +254,6 @@ void BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::SetItem(int index, st
   array_[index] = item;
 }
 
-template <typename KeyType, typename ValueType, typename KeyComparator>
-void BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>::RemoveIndexedRecord(int index) {
-  for (int i = index; i + 1 < size_; ++i) {
-    array_[i] = array_[i + 1];
-  }
-  size_--;
-}
 /*
  * Insert item at the front of my items. Move items accordingly.
  */
