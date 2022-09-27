@@ -25,7 +25,6 @@
 
 namespace bustub {
 
-
 /*
  * Score: 30
  * Description: Insert a set of keys range from 1 to 10000 in
@@ -40,7 +39,7 @@ TEST(BPlusTreeTests, ScaleTest) {
   DiskManager *disk_manager = new DiskManager("test.db");
   BufferPoolManagerInstance *bpm = new BufferPoolManagerInstance(30, disk_manager);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator,3,4);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 3, 4);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -57,7 +56,6 @@ TEST(BPlusTreeTests, ScaleTest) {
     keys.push_back(key);
   }
 
-
   // randomized the insertion order
   auto rng = std::default_random_engine{};
   std::shuffle(keys.begin(), keys.end(), rng);
@@ -72,7 +70,7 @@ TEST(BPlusTreeTests, ScaleTest) {
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
-    //int temp = bpm ->Count();
+    // int temp = bpm ->Count();
   }
   std::vector<RID> rids;
   for (auto key : keys) {

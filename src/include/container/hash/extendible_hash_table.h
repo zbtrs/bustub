@@ -41,7 +41,7 @@ class ExtendibleHashTable {
    * @param comparator comparator for keys
    * @param hash_fn the hash function
    */
-  explicit  ExtendibleHashTable(const std::string &name, BufferPoolManager *buffer_pool_manager,
+  explicit ExtendibleHashTable(const std::string &name, BufferPoolManager *buffer_pool_manager,
                                const KeyComparator &comparator, HashFunction<KeyType> hash_fn);
 
   /**

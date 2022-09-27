@@ -11,7 +11,7 @@
 #pragma once
 
 #include <queue>
-
+#include <utility>
 #include "storage/page/b_plus_tree_page.h"
 
 namespace bustub {
@@ -61,6 +61,8 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
   void FindSiblings(KeyType key, KeyComparator comparator, page_id_t *left_sibling_page_id,
                     page_id_t *right_sibling_page_id, int *index);
+
+  int LookupKey(const KeyType &key, const KeyComparator &comparator);
 
  private:
   void CopyNFrom(MappingType *items, int size);
