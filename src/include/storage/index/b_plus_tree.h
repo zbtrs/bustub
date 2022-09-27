@@ -87,8 +87,8 @@ class BPlusTree {
   auto CoalesceOrRedistribute(N *node, KeyType min_key, Transaction *transaction = nullptr) -> bool;
 
   template <typename N>
-  auto Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
-                int index, Transaction *transaction = nullptr) -> bool;
+  auto Coalesce(N *neighbor_node, N *node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent,
+                int opt, int index, Transaction *transaction = nullptr) -> bool;
 
   template <typename N>
   void Redistribute(N *neighbor_node, N *node, BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *parent_page,

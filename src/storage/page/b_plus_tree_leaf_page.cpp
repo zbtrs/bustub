@@ -129,7 +129,21 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient) {
  * Copy starting from items, and copy {size} number of elements into me.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyNFrom(MappingType *items, int size) {}
+void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyNFrom(MappingType *items, int size, int opt) {
+  if (opt == 0) {
+    for (int i = 0; i < size; ++i) {
+      array_[size_ + i] = items[i];
+    }
+  } else {
+    for (int i = size_ - 1; i >= 0; i--) {
+      array_[i + size] = array_[i];
+    }
+    for (int i = 0; i < size; ++i) {
+      array_[i] = items[i];
+    }
+  }
+  size_ += size;
+}
 
 /*****************************************************************************
  * LOOKUP
@@ -200,7 +214,11 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveAndDeleteRecord(const KeyType &key, const
  * to update the next_page id in the sibling page
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *recipient) {}
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *recipient, int opt) {
+  // opt == 0: move all to left neighbor; opt == 1: move all to right neighbor
+  recipient ->CopyNFrom(array_,size_,opt);
+  size_ = 0;
+}
 
 /*****************************************************************************
  * REDISTRIBUTE

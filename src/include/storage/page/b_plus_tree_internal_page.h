@@ -51,7 +51,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto RemoveAndReturnOnlyChild() -> ValueType;
 
   // Split and Merge utility methods
-  void MoveAllTo(BPlusTreeInternalPage *recipient, const KeyType &middle_key, BufferPoolManager *buffer_pool_manager);
+  void MoveAllTo(BPlusTreeInternalPage *recipient, const KeyType &middle_key);
   auto MoveHalfTo(BPlusTreeInternalPage *recipient, BufferPoolManager *buffer_pool_manager) -> KeyType;
   void MoveFirstToEndOf(BPlusTreeInternalPage *recipient);
   void MoveLastToFrontOf(BPlusTreeInternalPage *recipient);

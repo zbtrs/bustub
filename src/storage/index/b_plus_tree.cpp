@@ -267,7 +267,7 @@ auto BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, KeyType min_key, Transactio
       // redistribute
       Redistribute(right_sibling_page,node_page,parent_page,1,index);
     } else {
-      // TODO:Coalesce
+      Coalesce(right_sibling_page,node_page,parent_page,1,index,transaction);
     }
 
   } else if (right_sibling_page_id == INVALID_PAGE_ID) {
@@ -277,7 +277,7 @@ auto BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, KeyType min_key, Transactio
     if (left_sibling_page ->GetSize() >= left_sibling_page ->GetMinSize() + 1) {
       Redistribute(left_sibling_page,node_page,parent_page,0,index);
     } else {
-      // TODO:Coalesce
+      Coalesce(left_sibling_page,node_page,parent_page,0,index,transaction);
     }
   } else {
     auto left_sibling_page = reinterpret_cast<BPlusTreePage *>(
@@ -293,11 +293,12 @@ auto BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, KeyType min_key, Transactio
         Redistribute(right_sibling_page,node_page,parent_page,1,index);
       } else {
         buffer_pool_manager_ ->UnpinPage(right_sibling_page_id, false);
-        // TODO:Coalesce with left sibling
+        Coalesce(left_sibling_page,node_page,parent_page,0,index,transaction);
       }
     }
   }
 
+  return false;
 }
 
 /*
@@ -314,9 +315,39 @@ auto BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, KeyType min_key, Transactio
  */
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
-auto BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
-                              BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent, int index,
+auto BPLUSTREE_TYPE::Coalesce(N *neighbor_node, N *node,
+                              BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent, int opt, int index,
                               Transaction *transaction) -> bool {
+  // opt == 0: coalesce node with his left neighbor; opt == 1: coalesce node with his right neighbor
+  if (node ->IsLeafPage()) {
+    auto node_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(node);
+    auto neighbor_node_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(neighbor_node);
+    node_page ->MoveAllTo(neighbor_node_page,opt);
+    RemoveParent(parent,index);
+    if (opt == 0) {
+      neighbor_node_page ->SetNextPageId(node_page ->GetNextPageId());
+    } else {
+      auto left_node_page_id = parent ->ValueAt(index - 1);
+      auto left_node_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(
+          buffer_pool_manager_ ->FetchPage(left_node_page_id));
+      left_node_page ->SetNextPageId(neighbor_node_page ->GetPageId());
+      buffer_pool_manager_ ->UnpinPage(left_node_page_id,true);
+    }
+    auto node_page_id = node_page ->GetPageId();
+    buffer_pool_manager_ ->UnpinPage(node_page_id, true);
+    buffer_pool_manager_ ->DeletePage(node_page_id);
+    buffer_pool_manager_ ->UnpinPage(neighbor_node_page ->GetPageId(),true);
+  } else {
+    // TODO
+    // coalesce internal node
+    auto node_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(node);
+    auto neighbor_node_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(neighbor_node);
+    auto node_page_id = node_page ->GetPageId();
+    if (opt == 0) {
+
+    }
+  }
+
   return false;
 }
 
@@ -335,7 +366,6 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node,
                                   BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *parent_page, int opt,
                                   int index) {
   // opt == 0:redistribute with left sibling; opt == 1:redistribute with right sibling
-  // TODO:unpin neighbor_node,node,parent_page
 
   if (neighbor_node ->IsLeafPage()) {
     auto neighbor_node_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(neighbor_node);
