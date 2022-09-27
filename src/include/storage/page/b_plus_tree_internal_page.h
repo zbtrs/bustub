@@ -51,18 +51,19 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto RemoveAndReturnOnlyChild() -> ValueType;
 
   // Split and Merge utility methods
-  void MoveAllTo(BPlusTreeInternalPage *recipient, const KeyType &middle_key);
+  void MoveAllTo(BPlusTreeInternalPage *recipient, const KeyType &middle_key, int opt);
   auto MoveHalfTo(BPlusTreeInternalPage *recipient, BufferPoolManager *buffer_pool_manager) -> KeyType;
   void MoveFirstToEndOf(BPlusTreeInternalPage *recipient);
   void MoveLastToFrontOf(BPlusTreeInternalPage *recipient);
 
   void UpdateParentPageId(BufferPoolManager *buffer_pool_manager);
+  void UpdateNewParentId(page_id_t new_page_id, BufferPoolManager *buffer_pool_manager);
 
   void FindSiblings(KeyType key, KeyComparator comparator, page_id_t *left_sibling_page_id,
                     page_id_t *right_sibling_page_id, int *index);
 
  private:
-  void CopyNFrom(MappingType *items, int size, BufferPoolManager *buffer_pool_manager);
+  void CopyNFrom(MappingType *items, int size);
   void CopyLastFrom(const MappingType &pair);
   void CopyFirstFrom(const MappingType &pair);
   // Flexible array member for page data.

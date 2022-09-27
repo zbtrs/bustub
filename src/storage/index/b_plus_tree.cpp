@@ -344,8 +344,16 @@ auto BPLUSTREE_TYPE::Coalesce(N *neighbor_node, N *node,
     auto neighbor_node_page = reinterpret_cast<BPlusTreeInternalPage<KeyType,page_id_t,KeyComparator> *>(neighbor_node);
     auto node_page_id = node_page ->GetPageId();
     if (opt == 0) {
-
+      node_page ->MoveAllTo(neighbor_node_page,parent ->KeyAt(index),opt);
+      RemoveParent(parent,index);
+    } else {
+      node_page ->MoveAllTo(neighbor_node_page,parent ->KeyAt(index + 1),opt);
+      RemoveParent(parent,index + 1);
     }
+    node_page ->UpdateNewParentId(neighbor_node_page ->GetPageId(),buffer_pool_manager_);
+    buffer_pool_manager_ ->UnpinPage(node_page_id,true);
+    buffer_pool_manager_ ->DeletePage(node_page_id);
+    buffer_pool_manager_ ->UnpinPage(neighbor_node_page ->GetPageId(),true);
   }
 
   return false;
@@ -700,12 +708,6 @@ void BPLUSTREE_TYPE::ToString(BPlusTreePage *page, BufferPoolManager *bpm) const
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
-void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveInternalPage(
-    BPlusTreeInternalPage<KeyType, ValueType, KeyComparator> *node_page, Transaction *transaction) {
-  // TODO
-}
-
-template <typename KeyType, typename ValueType, typename KeyComparator>
 void BPlusTree<KeyType, ValueType, KeyComparator>::RecursiveUpdate(KeyType key, page_id_t page_id) {
   if (page_id == INVALID_PAGE_ID) {
     return;
@@ -726,6 +728,18 @@ void BPlusTree<KeyType, ValueType, KeyComparator>::RecursiveUpdate(KeyType key, 
     update_page = parent_page;
   }
   buffer_pool_manager_ ->UnpinPage(update_page ->GetPageId(), true);
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveParent(
+    BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent_page, int index) {
+  auto min_key = parent_page ->KeyAt(1);
+  parent_page ->Remove(index);
+  if (parent_page ->GetSize() >= parent_page ->GetMinSize()) {
+    buffer_pool_manager_ ->UnpinPage(parent_page ->GetPageId(),true);
+    return;
+  }
+  CoalesceOrRedistribute(parent_page,min_key);
 }
 
 template class BPlusTree<GenericKey<4>, RID, GenericComparator<4>>;

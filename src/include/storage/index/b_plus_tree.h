@@ -110,9 +110,8 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
-  void RemoveInternalPage(BPlusTreeInternalPage<KeyType, ValueType, KeyComparator> *node_page,
-                          Transaction *transaction);
   void RecursiveUpdate(KeyType key, page_id_t page_id);
+  void RemoveParent(BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent_page, int index);
 };
 
 }  // namespace bustub

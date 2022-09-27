@@ -148,7 +148,15 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient
  * So I need to 'adopt' them by changing their parent page id, which needs to be persisted with BufferPoolManger
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, BufferPoolManager *buffer_pool_manager) {}
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size) {
+  for (int i = size_ - 1; i >= 0; i--) {
+    array_[i + size] = array_[i];
+  }
+  for (int i = 0; i < size; ++i) {
+    array_[i] = items[i];
+  }
+  size_ += size;
+}
 
 /*****************************************************************************
  * REMOVE
@@ -159,7 +167,12 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, Buf
  * NOTE: store key&value pair continuously after deletion
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(int index) {}
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(int index) {
+  for (int i = index; i + 1 < size_; ++i) {
+    array_[i] = array_[i + 1];
+  }
+  size_--;
+}
 
 /*
  * Remove the only key & value pair in internal page and return the value
@@ -178,8 +191,19 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveAndReturnOnlyChild() -> ValueType { r
  * pages that are moved to the recipient
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveAllTo(BPlusTreeInternalPage *recipient, const KeyType &middle_key,
-                                               BufferPoolManager *buffer_pool_manager) {}
+void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::MoveAllTo(BPlusTreeInternalPage *recipient,
+                                                                         const KeyType &middle_key, int opt) {
+  if (opt == 0) {
+    recipient ->CopyLastFrom(std::make_pair(middle_key, array_[0].second));
+    for (int i = 1; i < size_; ++i) {
+      recipient ->CopyLastFrom(array_[i]);
+    }
+  } else {
+    recipient ->SetKeyAt(0,middle_key);
+    recipient ->CopyNFrom(array_,size_);
+  }
+  size_ = 0;
+}
 
 /*****************************************************************************
  * REDISTRIBUTE
@@ -306,6 +330,16 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::FindSiblings(KeyT
     *right_sibling_page_id = array_[res + 1].second;
   }
   *index = res;
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::UpdateNewParentId(
+    page_id_t new_page_id, BufferPoolManager *buffer_pool_manager) {
+  for (int i = 0; i < static_cast<int>(size_); ++i) {
+    auto child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager ->FetchPage(array_[i].second));
+    child_page ->SetParentPageId(new_page_id);
+    buffer_pool_manager ->UnpinPage(child_page ->GetPageId(),true);
+  }
 }
 
 // valuetype for internalNode should be page id_t
