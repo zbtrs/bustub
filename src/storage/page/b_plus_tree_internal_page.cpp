@@ -304,6 +304,7 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::FindSiblings(KeyT
                                                                             page_id_t *left_sibling_page_id,
                                                                             page_id_t *right_sibling_page_id,
                                                                             int *index) {
+  /*
   int l = 1;
   int r = size_ - 1;
   int res = r;
@@ -314,6 +315,19 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::FindSiblings(KeyT
       r = mid - 1;
     } else {
       l = mid + 1;
+    }
+  }
+  */
+  int l = 1;
+  int r = size_ - 1;
+  int res = 0;
+  while (l <= r) {
+    int mid = (l + r) >> 1;
+    if (comparator(array_[mid].first,key) <= 0) {
+      res = mid;
+      l = mid + 1;
+    } else {
+      r = mid - 1;
     }
   }
   if (res >= 1) {
