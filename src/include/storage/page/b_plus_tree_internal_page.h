@@ -62,7 +62,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void FindSiblings(KeyType key, KeyComparator comparator, page_id_t *left_sibling_page_id,
                     page_id_t *right_sibling_page_id, int *index);
 
-  int LookupKey(const KeyType &key, const KeyComparator &comparator);
+  auto LookupKey(const KeyType &key, const KeyComparator &comparator) -> int;
 
  private:
   void CopyNFrom(MappingType *items, int size);

@@ -12,15 +12,20 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <random>
 
 #include "buffer/buffer_pool_manager_instance.h"
 #include "gtest/gtest.h"
+#include "storage/disk/disk_manager.h"
 #include "storage/index/b_plus_tree.h"
+#include "storage/index/int_comparator.h"
+#include "storage/page/hash_table_bucket_page.h"
+#include "storage/page/hash_table_directory_page.h"
 #include "test_util.h"  // NOLINT
 
 namespace bustub {
 
-TEST(BPlusTreeTests, DISABLED_DeleteTest1) {
+TEST(BPlusTreeTests, DeleteTest1) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());

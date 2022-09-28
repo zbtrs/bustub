@@ -257,7 +257,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyFirstFrom(const MappingType &pair) {
   size_++;
 }
 
-template <typename KeyType, typename ValueType, typename KeyComparator>
+INDEX_TEMPLATE_ARGUMENTS
 auto BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::Insert(const KeyType &key, const ValueType &value,
                                                                       const KeyComparator &comparator) -> int {
   if (size_ <= 1 || comparator(array_[size_ - 1].first, key) < 0) {
@@ -285,11 +285,12 @@ auto BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::Insert(const KeyT
   return size_;
 }
 
-template <typename KeyType, typename ValueType, typename KeyComparator>
+INDEX_TEMPLATE_ARGUMENTS
 void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::SetItem(int index, std::pair<KeyType, ValueType> item) {
   array_[index] = item;
 }
-template <typename KeyType, typename ValueType, typename KeyComparator>
+
+INDEX_TEMPLATE_ARGUMENTS
 void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::UpdateParentPageId(
     BufferPoolManager *buffer_pool_manager) {
   for (int i = 0; i < size_; ++i) {
@@ -299,7 +300,7 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::UpdateParentPageI
   }
 }
 
-template <typename KeyType, typename ValueType, typename KeyComparator>
+INDEX_TEMPLATE_ARGUMENTS
 void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::FindSiblings(KeyType key, KeyComparator comparator,
                                                                             page_id_t *left_sibling_page_id,
                                                                             page_id_t *right_sibling_page_id,
@@ -339,7 +340,7 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::FindSiblings(KeyT
   *index = res;
 }
 
-template <typename KeyType, typename ValueType, typename KeyComparator>
+INDEX_TEMPLATE_ARGUMENTS
 void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::UpdateNewParentId(
     page_id_t new_page_id, BufferPoolManager *buffer_pool_manager) {
   for (int i = 0; i < static_cast<int>(size_); ++i) {
@@ -349,8 +350,8 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::UpdateNewParentId
   }
 }
 
-template <typename KeyType, typename ValueType, typename KeyComparator>
-int BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::LookupKey(const KeyType &key, const KeyComparator &comparator) {
+INDEX_TEMPLATE_ARGUMENTS
+auto BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::LookupKey(const KeyType &key, const KeyComparator &comparator) -> int {
   if (size_ == 1) {
     return 0;
   }

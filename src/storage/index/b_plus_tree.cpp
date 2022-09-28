@@ -224,17 +224,19 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   if (index == 0 && comparator_(leaf_page->KeyAt(index), key) == 0) {
     delete_min = true;
   }
-  auto min_key = leaf_page->KeyAt(0);
+  KeyType min_key = leaf_page->KeyAt(0);
   auto leaf_page_size = leaf_page->RemoveAndDeleteRecord(key, comparator_);
+
   if (leaf_page_size >= leaf_page->GetMinSize()) {
     if (delete_min && leaf_page->GetPageId() != root_page_id_ && leaf_page_size > 0) {
       auto parent_page =
           reinterpret_cast<BPlusTreeInternalPage<KeyType,
-                                                 ValueType, KeyComparator> *>(
+                                                 page_id_t , KeyComparator> *>(
               buffer_pool_manager_ ->FetchPage(leaf_page->GetParentPageId()));
-      auto key_index = parent_page ->LookupKey(min_key,comparator_);
+      // TODO:fix it
+      int key_index = parent_page ->LookupKey(min_key,comparator_);
       auto last_key = parent_page ->KeyAt(key_index);
-      parent_page->SetKeyAt(key_index, leaf_page->KeyAt(0));
+      parent_page ->SetKeyAt(key_index, leaf_page->KeyAt(0));
       if (key_index == 1) {
         RecursiveUpdate(last_key, parent_page ->KeyAt(1),parent_page ->GetParentPageId());
       }
@@ -243,6 +245,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
     buffer_pool_manager_->UnpinPage(leaf_page->GetPageId(), true);
     return;
   }
+
   CoalesceOrRedistribute(leaf_page, min_key, transaction);
 }
 
