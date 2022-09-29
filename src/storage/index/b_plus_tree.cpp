@@ -26,7 +26,7 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *buffer_pool_manag
       buffer_pool_manager_(buffer_pool_manager),
       comparator_(comparator),
       leaf_max_size_(leaf_max_size),
-      internal_max_size_(internal_max_size) {}
+      internal_max_size_(internal_max_size){UpdateRootPageId();}
 
 /*
  * Helper function to decide whether current b+tree is empty
@@ -90,6 +90,7 @@ void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
   new_root_page->Init(root_page_id_, INVALID_PAGE_ID, leaf_max_size_);
   new_root_page->SetPageType(IndexPageType::LEAF_PAGE);
   new_root_page->SetNextPageId(INVALID_PAGE_ID);
+  UpdateRootPageId();
   InsertIntoLeaf(new_root_page, key, value);
 }
 
@@ -176,6 +177,7 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
     new_root_page->Init(root_page_id_, INVALID_PAGE_ID, internal_max_size_);
     new_root_page->SetPageType(IndexPageType::INTERNAL_PAGE);
     new_root_page->PopulateNewRoot(old_node->GetPageId(), key, new_page_id);
+    UpdateRootPageId();
     old_node->SetParentPageId(root_page_id_);
     buffer_pool_manager_->UnpinPage(root_page_id_, true);
     auto new_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(new_page_id));
@@ -226,6 +228,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   }
   KeyType min_key = leaf_page->KeyAt(0);
   auto leaf_page_size = leaf_page->RemoveAndDeleteRecord(key, comparator_);
+
 
   if (leaf_page_size >= leaf_page->GetMinSize()) {
     if (delete_min && leaf_page->GetPageId() != root_page_id_ && leaf_page_size > 0) {
@@ -461,6 +464,7 @@ auto BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) -> bool {
       buffer_pool_manager_->UnpinPage(old_root_node_id, true);
       buffer_pool_manager_->DeletePage(old_root_node_id);
       root_page_id_ = INVALID_PAGE_ID;
+      UpdateRootPageId();
       return true;
     }
     buffer_pool_manager_->UnpinPage(old_root_node->GetPageId(), true);
@@ -475,6 +479,7 @@ auto BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) -> bool {
   buffer_pool_manager_->UnpinPage(root_page_id_, true);
   buffer_pool_manager_->DeletePage(root_page_id_);
   root_page_id_ = new_root_page_id;
+  UpdateRootPageId();
 
   return true;
 }
@@ -775,6 +780,11 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveParent(
     BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent_page, int index) {
   auto min_key = parent_page->KeyAt(1);
+  /*
+  if (index == 1) {
+    RecursiveUpdate(min_key,parent_page ->KeyAt(1),parent_page ->GetParentPageId());
+  }
+   */
   parent_page->Remove(index);
   if (parent_page->GetSize() >= parent_page->GetMinSize()) {
     buffer_pool_manager_->UnpinPage(parent_page->GetPageId(), true);
