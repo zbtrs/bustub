@@ -233,7 +233,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
           reinterpret_cast<BPlusTreeInternalPage<KeyType,
                                                  page_id_t , KeyComparator> *>(
               buffer_pool_manager_ ->FetchPage(leaf_page->GetParentPageId()));
-      // TODO:fix it
+      // TODO:why problem
       int key_index = parent_page ->LookupKey(min_key,comparator_);
       auto last_key = parent_page ->KeyAt(key_index);
       parent_page ->SetKeyAt(key_index, leaf_page->KeyAt(0));
@@ -330,16 +330,16 @@ auto BPLUSTREE_TYPE::Coalesce(N *neighbor_node, N *node,
     auto node_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(node);
     auto neighbor_node_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(neighbor_node);
     node_page->MoveAllTo(neighbor_node_page, opt);
-    RemoveParent(parent, index);
     if (opt == 0) {
       neighbor_node_page->SetNextPageId(node_page->GetNextPageId());
-    } else {
+    } else if (index > 0) {
       auto left_node_page_id = parent->ValueAt(index - 1);
       auto left_node_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(
           buffer_pool_manager_->FetchPage(left_node_page_id));
       left_node_page->SetNextPageId(neighbor_node_page->GetPageId());
       buffer_pool_manager_->UnpinPage(left_node_page_id, true);
     }
+    RemoveParent(parent, index);
     auto node_page_id = node_page->GetPageId();
     buffer_pool_manager_->UnpinPage(node_page_id, true);
     buffer_pool_manager_->DeletePage(node_page_id);
@@ -350,14 +350,16 @@ auto BPLUSTREE_TYPE::Coalesce(N *neighbor_node, N *node,
     auto neighbor_node_page =
         reinterpret_cast<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *>(neighbor_node);
     auto node_page_id = node_page->GetPageId();
+    node_page->UpdateNewParentId(neighbor_node_page->GetPageId(), buffer_pool_manager_);
     if (opt == 0) {
       node_page->MoveAllTo(neighbor_node_page, parent->KeyAt(index), opt);
       RemoveParent(parent, index);
     } else {
       node_page->MoveAllTo(neighbor_node_page, parent->KeyAt(index + 1), opt);
+      parent ->SetValueAt(index,neighbor_node_page ->GetPageId());
       RemoveParent(parent, index + 1);
     }
-    node_page->UpdateNewParentId(neighbor_node_page->GetPageId(), buffer_pool_manager_);
+    // TODO:fix it
     buffer_pool_manager_->UnpinPage(node_page_id, true);
     buffer_pool_manager_->DeletePage(node_page_id);
     buffer_pool_manager_->UnpinPage(neighbor_node_page->GetPageId(), true);

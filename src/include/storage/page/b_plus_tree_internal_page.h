@@ -40,6 +40,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
   auto KeyAt(int index) const -> KeyType;
   void SetKeyAt(int index, const KeyType &key);
+  void SetValueAt(int index, const ValueType &value);
   auto ValueIndex(const ValueType &value) const -> int;
   auto ValueAt(int index) const -> ValueType;
 
