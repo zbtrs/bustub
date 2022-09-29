@@ -211,8 +211,11 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::MoveAllTo(BPlusTr
  * pages that are moved to the recipient
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *recipient) {
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *recipient, BufferPoolManager *bufferPoolManager) {
   auto element = array_[0];
+  auto first_page = reinterpret_cast<BPlusTreePage *>(bufferPoolManager ->FetchPage(element.second));
+  first_page ->SetParentPageId(recipient ->GetPageId());
+  bufferPoolManager ->UnpinPage(first_page ->GetPageId(), true);
   recipient->CopyLastFrom(element);
   for (int i = 0; i + 1 < size_; ++i) {
     array_[i] = array_[i + 1];
@@ -238,8 +241,11 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyLastFrom(const MappingType &pair) {
  * moved to the recipient
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *recipient) {
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *recipient, BufferPoolManager *bufferPoolManager) {
   auto element = array_[size_ - 1];
+  auto last_page = reinterpret_cast<BPlusTreePage *>(bufferPoolManager ->FetchPage(element.second));
+  last_page ->SetParentPageId(recipient ->GetPageId());
+  bufferPoolManager ->UnpinPage(last_page ->GetPageId(),true);
   recipient->CopyFirstFrom(element);
   size_--;
 }

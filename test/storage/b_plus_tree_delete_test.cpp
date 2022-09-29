@@ -48,21 +48,13 @@ TEST(BPlusTreeDeleteTests, Insert_Delete_Check) {
     (void) header_page;
 
     std::vector<int64_t> keys;
-    //int scale = 8; // at first, set a small number(6-10) to find bug
-    keys.push_back(4);
-    keys.push_back(5);
-    keys.push_back(7);
-    keys.push_back(8);
-    keys.push_back(6);
-    keys.push_back(3);
-    keys.push_back(2);
-    keys.push_back(1);
-    /*
+    int scale = 1500; // at first, set a small number(6-10) to find bug
+
     for (int i = 0; i < scale; ++i) {
       keys.push_back(i + 1);
     }
     std::random_shuffle(keys.begin(), keys.end());
-     */
+
 
     std::cout << "\n--- to insert: ";
     for (auto key : keys) {

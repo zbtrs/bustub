@@ -54,8 +54,8 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   // Split and Merge utility methods
   void MoveAllTo(BPlusTreeInternalPage *recipient, const KeyType &middle_key, int opt);
   auto MoveHalfTo(BPlusTreeInternalPage *recipient, BufferPoolManager *buffer_pool_manager) -> KeyType;
-  void MoveFirstToEndOf(BPlusTreeInternalPage *recipient);
-  void MoveLastToFrontOf(BPlusTreeInternalPage *recipient);
+  void MoveFirstToEndOf(BPlusTreeInternalPage *recipient, BufferPoolManager *bufferPoolManager);
+  void MoveLastToFrontOf(BPlusTreeInternalPage *recipient, BufferPoolManager *bufferPoolManager);
 
   void UpdateParentPageId(BufferPoolManager *buffer_pool_manager);
   void UpdateNewParentId(page_id_t new_page_id, BufferPoolManager *buffer_pool_manager);

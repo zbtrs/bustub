@@ -240,8 +240,8 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
       int key_index = parent_page ->LookupKey(min_key,comparator_);
       auto last_key = parent_page ->KeyAt(key_index);
       parent_page ->SetKeyAt(key_index, leaf_page->KeyAt(0));
-      if (key_index == 1) {
-        RecursiveUpdate(last_key, parent_page ->KeyAt(1),parent_page ->GetParentPageId());
+      if (key_index == 0) {
+        RecursiveUpdate(last_key, parent_page ->KeyAt(0),parent_page ->GetParentPageId());
       }
       buffer_pool_manager_->UnpinPage(parent_page->GetPageId(), false);
     }
@@ -421,7 +421,7 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node,
     bool is_change = false;
     if (opt == 1) {
       auto neighbor_key = neighbor_node_page->KeyAt(1);
-      neighbor_node_page->MoveFirstToEndOf(node_page);
+      neighbor_node_page->MoveFirstToEndOf(node_page,buffer_pool_manager_);
       node_page->SetKeyAt(node_page->GetSize() - 1, parent_key);
       if (comparator_(last_key,neighbor_key) != 0) {
         is_change = true;
@@ -429,7 +429,7 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node,
       parent_page->SetKeyAt(index, neighbor_key);
     } else {
       auto neighbor_key = neighbor_node_page->KeyAt(neighbor_node_page->GetSize() - 1);
-      neighbor_node_page->MoveLastToFrontOf(node_page);
+      neighbor_node_page->MoveLastToFrontOf(node_page,buffer_pool_manager_);
       node_page->SetKeyAt(1, parent_key);
       if (comparator_(last_key,neighbor_key) != 0) {
         is_change = true;
@@ -437,8 +437,8 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node,
       parent_page->SetKeyAt(index, neighbor_key);
     }
 
-    if (index == 1 && is_change) {
-      RecursiveUpdate(last_key, parent_page->KeyAt(1), parent_page->GetParentPageId());
+    if (index == 0 && is_change) {
+      RecursiveUpdate(last_key, parent_page->KeyAt(0), parent_page->GetParentPageId());
     }
   }
   buffer_pool_manager_->UnpinPage(neighbor_node->GetPageId(), true);
@@ -476,8 +476,11 @@ auto BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) -> bool {
   }
   auto new_root_page_id =
       reinterpret_cast<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *>(old_root_node)->ValueAt(0);
-  buffer_pool_manager_->UnpinPage(root_page_id_, true);
-  buffer_pool_manager_->DeletePage(root_page_id_);
+  auto new_root_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_ ->FetchPage(new_root_page_id));
+  new_root_page ->SetParentPageId(INVALID_PAGE_ID);
+  buffer_pool_manager_ ->UnpinPage(new_root_page_id, true);
+  buffer_pool_manager_ ->UnpinPage(root_page_id_, true);
+  buffer_pool_manager_ ->DeletePage(root_page_id_);
   root_page_id_ = new_root_page_id;
   UpdateRootPageId();
 
@@ -750,11 +753,11 @@ void BPlusTree<KeyType, ValueType, KeyComparator>::RecursiveUpdate(KeyType min_k
   min_key = update_page ->KeyAt(index);
   update_page ->SetKeyAt(index, key);
 
-  while (index == 1 && update_page ->GetPageId() != root_page_id_) {
+  while (index == 0 && update_page ->GetPageId() != root_page_id_) {
     auto parent_page = reinterpret_cast<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *>(
         buffer_pool_manager_->FetchPage(update_page->GetParentPageId()));
-    if (parent_page ->ValueAt(1) == update_page ->GetPageId()) {
-      index = 1;
+    if (parent_page ->ValueAt(0) == update_page ->GetPageId()) {
+      index = 0;
     } else {
       index = parent_page->LookupKey(min_key, comparator_);
     }
