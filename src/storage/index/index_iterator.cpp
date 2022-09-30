@@ -36,7 +36,7 @@ auto INDEXITERATOR_TYPE::operator*() -> const MappingType & {
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   ++cursor_;
-  if (cursor_ < size_) {
+  if (cursor_ < size_ || next_page_id_ == INVALID_PAGE_ID) {
     return *this;
   }
   auto now_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(

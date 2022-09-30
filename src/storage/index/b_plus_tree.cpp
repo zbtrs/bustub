@@ -523,7 +523,7 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
   BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *last_leaf_page = FindCertainLeafPage(1);
   return INDEXITERATOR_TYPE(last_leaf_page ->GetPageId(),last_leaf_page ->GetNextPageId(), last_leaf_page ->GetSize(),
-                            last_leaf_page ->GetSize() - 1,buffer_pool_manager_);
+                            last_leaf_page ->GetSize(),buffer_pool_manager_);
 }
 
 /*****************************************************************************

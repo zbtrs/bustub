@@ -46,9 +46,6 @@ TEST(BPlusTreeTests, InsertTest11) {
   (void)header_page;
 
   std::vector<int64_t> keys = {1, 2, 3, 4, 5};
-  for (int i = 6; i <= 50000; i++) {
-    keys.push_back(i);
-  }
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
     rid.Set(static_cast<int32_t>(key >> 32), value);
@@ -87,7 +84,7 @@ TEST(BPlusTreeTests, InsertTest11) {
   remove("test.log");
 }
 
-TEST(BPlusTreeTests, DISABLED_InsertTest2) {
+TEST(BPlusTreeTests, InsertTest2) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
