@@ -25,71 +25,6 @@
 
 namespace bustub {
 
-/*
- * Score: 30
- * Description: Insert a set of keys range from 1 to 10000 in
- * a random order. Check whether the key-value pair is valid
- * using GetValue
- */
-TEST(BPlusTreeTests, ScaleTest) {
-  // create KeyComparator and index schema
-  auto key_schema = ParseCreateStatement("a bigint");
-  GenericComparator<8> comparator(key_schema.get());
-
-  DiskManager *disk_manager = new DiskManager("test.db");
-  BufferPoolManagerInstance *bpm = new BufferPoolManagerInstance(30, disk_manager);
-  // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", bpm, comparator, 3, 4);
-  GenericKey<8> index_key;
-  RID rid;
-  // create transaction
-  Transaction *transaction = new Transaction(0);
-  // create and fetch header_page
-  page_id_t page_id;
-  auto header_page = bpm->NewPage(&page_id);
-  (void)header_page;
-
-  int64_t scale = 10005;
-  std::vector<int64_t> keys;
-
-  for (int64_t key = 1; key < scale; key++) {
-    keys.push_back(key);
-  }
-
-  // randomized the insertion order
-  auto rng = std::default_random_engine{};
-  std::shuffle(keys.begin(), keys.end(), rng);
-  for (auto key : keys) {
-    std::cout << key << " ";
-  }
-
-  int i = 0;
-  for (auto key : keys) {
-    ++i;
-    int64_t value = key & 0xFFFFFFFF;
-    rid.Set(static_cast<int32_t>(key >> 32), value);
-    index_key.SetFromInteger(key);
-    tree.Insert(index_key, rid, transaction);
-    // int temp = bpm ->Count();
-  }
-  std::vector<RID> rids;
-  for (auto key : keys) {
-    rids.clear();
-    index_key.SetFromInteger(key);
-    tree.GetValue(index_key, &rids);
-    EXPECT_EQ(rids.size(), 1);
-
-    int64_t value = key & 0xFFFFFFFF;
-    EXPECT_EQ(rids[0].GetSlotNum(), value);
-  }
-
-  bpm->UnpinPage(HEADER_PAGE_ID, true);
-  delete transaction;
-  delete disk_manager;
-  delete bpm;
-  remove("test.db");
-  remove("test.log");
-}
 
 TEST(BPlusTreeTests, InsertTest11) {
   // create KeyComparator and index schema
@@ -131,7 +66,7 @@ TEST(BPlusTreeTests, InsertTest11) {
     int64_t value = key & 0xFFFFFFFF;
     EXPECT_EQ(rids[0].GetSlotNum(), value);
   }
-  /*
+
   int64_t start_key = 1;
   int64_t current_key = start_key;
   index_key.SetFromInteger(start_key);
@@ -143,7 +78,7 @@ TEST(BPlusTreeTests, InsertTest11) {
   }
 
   EXPECT_EQ(current_key, keys.size() + 1);
-  */
+
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete transaction;
   delete disk_manager;

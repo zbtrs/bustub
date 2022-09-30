@@ -496,7 +496,11 @@ auto BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) -> bool {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
+  BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *first_leaf_page = FindCertainLeafPage(0);
+  return INDEXITERATOR_TYPE(first_leaf_page ->GetPageId(),first_leaf_page ->GetNextPageId(), first_leaf_page ->GetSize(),
+                            0,buffer_pool_manager_);
+}
 
 /*
  * Input parameter is low key, find the leaf page that contains the input key
@@ -504,7 +508,11 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE()
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
+  auto *leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(FindLeafPage(key,0));
+  return INDEXITERATOR_TYPE(leaf_page ->GetPageId(),leaf_page ->GetNextPageId(), leaf_page ->GetSize(),
+                            leaf_page ->KeyIndex(key,comparator_),buffer_pool_manager_);
+}
 
 /*
  * Input parameter is void, construct an index iterator representing the end
@@ -512,7 +520,11 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { return IN
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
+  BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *last_leaf_page = FindCertainLeafPage(1);
+  return INDEXITERATOR_TYPE(last_leaf_page ->GetPageId(),last_leaf_page ->GetNextPageId(), last_leaf_page ->GetSize(),
+                            last_leaf_page ->GetSize() - 1,buffer_pool_manager_);
+}
 
 /*****************************************************************************
  * UTILITIES AND DEBUG
@@ -533,6 +545,22 @@ auto BPLUSTREE_TYPE::FindLeafPage(const KeyType &key, bool leftMost) -> BPlusTre
     buffer_pool_manager_->UnpinPage(last_page_id, false);
   }
   return find_page;
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>
+    *BPlusTree<KeyType, ValueType, KeyComparator>::FindCertainLeafPage(int opt) {
+  auto find_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(root_page_id_));
+  while (!find_page->IsLeafPage()) {
+    auto last_page_id = find_page->GetPageId();
+    auto next_find_page = reinterpret_cast<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *>(find_page);
+    int index = (opt == 0 ? 0 : next_find_page ->GetSize() - 1);
+    find_page =
+        reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(next_find_page ->ValueAt(index)));
+
+    buffer_pool_manager_->UnpinPage(last_page_id, false);
+  }
+  return reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(find_page);
 }
 
 /*
@@ -795,6 +823,7 @@ void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveParent(
   }
   CoalesceOrRedistribute(parent_page, min_key);
 }
+
 
 template class BPlusTree<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTree<GenericKey<8>, RID, GenericComparator<8>>;
