@@ -21,7 +21,7 @@ INDEXITERATOR_TYPE::~IndexIterator() = default;  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::IsEnd() -> bool {
-  return (cursor_ + 1 == size_ && next_page_id_ == INVALID_PAGE_ID);
+  return (cursor_ == size_ && next_page_id_ == INVALID_PAGE_ID);
 }
 
 INDEX_TEMPLATE_ARGUMENTS
