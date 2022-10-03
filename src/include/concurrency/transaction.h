@@ -213,10 +213,15 @@ class Transaction {
   inline void AddIntoPageSet(Page *page) { page_set_->push_back(page); }
 
   inline void ClearPageSet() {
-    while (!page_set_ ->empty()) {
-      page_set_ ->front() ->WUnlatch();
-      page_set_ ->pop_front();
-    }
+    page_set_ ->clear();
+  }
+
+  inline auto GetLastPageSetElement() ->Page* {
+    return page_set_ ->back();
+  }
+
+  inline void DeleteLastPageSetElement() {
+    page_set_ ->pop_back();
   }
 
   /** @return the deleted page set */

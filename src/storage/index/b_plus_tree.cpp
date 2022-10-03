@@ -43,10 +43,17 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return root_page_id_ == INVALID_P
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
-  auto leaf_page = FindLeafPage(key);
+  auto leaf_page = FindLeafPage(key,0);
+  if (transaction ->GetLastPageSetElement() ->GetPageId() != leaf_page ->GetPageId()) {
+    RLatch(leaf_page);
+  }
   ValueType res;
   bool flag = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(leaf_page)->Lookup(key, &res,
                                                                                                           comparator_);
+  if (transaction ->GetLastPageSetElement() ->GetPageId() == leaf_page ->GetPageId()) {
+    transaction ->DeleteLastPageSetElement();
+    RUnLatch(leaf_page);
+  }
   buffer_pool_manager_->UnpinPage(leaf_page->GetPageId(), false);
   if (flag) {
     result->push_back(res);
@@ -71,7 +78,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     StartNewTree(key, value);
     return true;
   }
-  auto leaf_page = FindLeafPage(key);
+  auto leaf_page = FindLeafPage(key,1,transaction);
   bool flag = InsertIntoLeaf(leaf_page, key, value, transaction);
 
   return flag;
@@ -217,7 +224,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   if (IsEmpty()) {
     return;
   }
-  auto leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(FindLeafPage(key));
+  auto leaf_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(FindLeafPage(key,2,transaction));
   auto index = leaf_page->KeyIndex(key, comparator_);
   if (comparator_(leaf_page ->KeyAt(index),key) != 0) {
     return;
@@ -536,15 +543,76 @@ auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
  * the left most leaf page
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::FindLeafPage(const KeyType &key, bool leftMost) -> BPlusTreePage * {
+auto BPLUSTREE_TYPE::FindLeafPage(const KeyType &key, int opt, Transaction *transaction, bool leftMost) -> BPlusTreePage *{
+  // opt == 0:GetValue; opt == 1:Insert; opt == 2:Remove
   auto find_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(root_page_id_));
+  root_latch_.lock();
+  if (opt == 0) {
+    RLatch(find_page);
+    root_latch_.unlock();
+  } else if (opt == 1) {
+    WLatch(find_page);
+    if (find_page ->GetSize() + 1 <= find_page ->GetMaxSize()) {
+      root_latch_.unlock();
+    }
+  } else {
+    WLatch(find_page);
+    if (find_page ->GetSize() >= find_page ->GetMinSize() + 1) {
+      root_latch_.unlock();
+    }
+  }
+  transaction ->AddIntoPageSet(reinterpret_cast<Page *>(find_page));
   while (!find_page->IsLeafPage()) {
     auto last_page_id = find_page->GetPageId();
     auto next_find_page = reinterpret_cast<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *>(find_page);
     find_page =
         reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(next_find_page->Lookup(key, comparator_)));
-
-    buffer_pool_manager_->UnpinPage(last_page_id, false);
+    if (opt == 0) {
+      RLatch(find_page);
+      auto page_queue = transaction ->GetPageSet();
+      transaction ->ClearPageSet();
+      while (!page_queue ->empty()) {
+        auto first_page = page_queue ->front();
+        page_queue ->pop_front();
+        first_page ->RUnlatch();
+        if (first_page ->GetPageId() == root_page_id_) {
+          root_latch_.unlock();
+        }
+        buffer_pool_manager_ ->UnpinPage(first_page ->GetPageId(), false);
+      }
+    } else if (opt == 1) {
+      WLatch(find_page);
+      if (find_page ->GetSize() + 1 <= find_page ->GetMaxSize()) {
+        auto page_queue = transaction ->GetPageSet();
+        transaction ->ClearPageSet();
+        while (!page_queue ->empty()) {
+          auto first_page = page_queue ->front();
+          page_queue ->pop_front();
+          first_page ->WUnlatch();
+          if (first_page ->GetPageId() == root_page_id_) {
+            root_latch_.unlock();
+          }
+          buffer_pool_manager_ ->UnpinPage(first_page ->GetPageId(), false);
+        }
+      }
+    } else {
+      WLatch(find_page);
+      if (find_page ->GetSize() >= find_page ->GetMinSize() + 1) {
+        auto page_queue = transaction ->GetPageSet();
+        transaction ->ClearPageSet();
+        while (!page_queue ->empty()) {
+          auto first_page = page_queue ->front();
+          page_queue ->pop_front();
+          first_page ->WUnlatch();
+          if (first_page ->GetPageId() == root_page_id_) {
+            root_latch_.unlock();
+          }
+          buffer_pool_manager_ ->UnpinPage(first_page ->GetPageId(), false);
+        }
+      }
+    }
+    transaction ->AddIntoPageSet(reinterpret_cast<Page *>(find_page));
+    //buffer_pool_manager_->UnpinPage(last_page_id, false);
   }
   return find_page;
 }
@@ -826,6 +894,25 @@ void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveParent(
   CoalesceOrRedistribute(parent_page, min_key);
 }
 
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTree<KeyType, ValueType, KeyComparator>::RLatch(BPlusTreePage *child_page) {
+  reinterpret_cast<Page *>(child_page) -> RLatch();
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTree<KeyType, ValueType, KeyComparator>::RUnLatch(BPlusTreePage *child_page) {
+  reinterpret_cast<Page *>(child_page) -> RUnlatch();
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTree<KeyType, ValueType, KeyComparator>::WLatch(BPlusTreePage *child_page) {
+  reinterpret_cast<Page *>(child_page) -> WLatch();
+}
+
+template <typename KeyType, typename ValueType, typename KeyComparator>
+void BPlusTree<KeyType, ValueType, KeyComparator>::WUnLatch(BPlusTreePage *child_page) {
+  reinterpret_cast<Page *>(child_page) -> WUnlatch();
+}
 
 template class BPlusTree<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTree<GenericKey<8>, RID, GenericComparator<8>>;
