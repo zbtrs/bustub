@@ -243,7 +243,6 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
           reinterpret_cast<BPlusTreeInternalPage<KeyType,
                                                  page_id_t , KeyComparator> *>(
               buffer_pool_manager_ ->FetchPage(leaf_page->GetParentPageId()));
-      // TODO:why problem
       int key_index = parent_page ->LookupKey(min_key,comparator_);
       auto last_key = parent_page ->KeyAt(key_index);
       parent_page ->SetKeyAt(key_index, leaf_page->KeyAt(0));
@@ -563,7 +562,6 @@ auto BPLUSTREE_TYPE::FindLeafPage(const KeyType &key, int opt, Transaction *tran
   }
   transaction ->AddIntoPageSet(reinterpret_cast<Page *>(find_page));
   while (!find_page->IsLeafPage()) {
-    auto last_page_id = find_page->GetPageId();
     auto next_find_page = reinterpret_cast<BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *>(find_page);
     find_page =
         reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(next_find_page->Lookup(key, comparator_)));
@@ -863,16 +861,6 @@ void BPlusTree<KeyType, ValueType, KeyComparator>::RecursiveUpdate(KeyType min_k
     parent_page ->SetKeyAt(index,key);
     buffer_pool_manager_ ->UnpinPage(update_page ->GetPageId(),true);
     update_page = parent_page;
-    /*
-    if (parent_page->ValueAt(1) != update_page->GetPageId()) {
-      buffer_pool_manager_->UnpinPage(parent_page->GetPageId(), false);
-      buffer_pool_manager_->UnpinPage(update_page->GetPageId(), true);
-      return;
-    }
-    parent_page->SetKeyAt(1, update_page->KeyAt(1));
-    buffer_pool_manager_->UnpinPage(update_page->GetPageId(), true);
-    update_page = parent_page;
-     */
   }
   buffer_pool_manager_->UnpinPage(update_page->GetPageId(), true);
 }
@@ -881,11 +869,6 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 void BPlusTree<KeyType, ValueType, KeyComparator>::RemoveParent(
     BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *parent_page, int index) {
   auto min_key = parent_page->KeyAt(1);
-  /*
-  if (index == 1) {
-    RecursiveUpdate(min_key,parent_page ->KeyAt(1),parent_page ->GetParentPageId());
-  }
-   */
   parent_page->Remove(index);
   if (parent_page->GetSize() >= parent_page->GetMinSize()) {
     buffer_pool_manager_->UnpinPage(parent_page->GetPageId(), true);
