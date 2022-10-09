@@ -21,16 +21,18 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
     : AbstractExecutor(exec_ctx),plan_(plan),is_insert_(false) {
   table_info_ = exec_ctx ->GetCatalog() ->GetTable(plan ->TableOid());
   index_info_ = exec_ctx ->GetCatalog() ->GetTableIndexes(table_info_ ->name_);
+  child_executor_ = std::move(child_executor);
 }
 
 void InsertExecutor::Init() {
-  // TODO:child_executor INIT?
+  if (!plan_ ->IsRawInsert()) {
+    child_executor_ ->Init();
+  }
 }
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   RID tuple_rid;
   if (plan_ ->IsRawInsert()) {
-    // TODO:move?
     if (is_insert_) {
       return false;
     }
@@ -49,10 +51,22 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
         index_info ->index_ ->InsertEntry(index_tuple,tuple_rid,exec_ctx_ ->GetTransaction());
       }
     }
-  } else {
-    // TODO
+    return true;
+  }
+
+  Tuple child_tuple;
+  if (!child_executor_ ->Next(&child_tuple,&tuple_rid)) {
     return false;
   }
+  if (!table_info_ ->table_ ->InsertTuple(child_tuple,&tuple_rid,exec_ctx_ ->GetTransaction())) {
+    return false;
+  }
+  for (auto index_info : index_info_) {
+    auto index_tuple = child_tuple.KeyFromTuple(table_info_ ->schema_, index_info->key_schema_,
+                                               index_info->index_->GetKeyAttrs());
+    index_info ->index_ ->InsertEntry(index_tuple,tuple_rid,exec_ctx_ ->GetTransaction());
+  }
+
   return true;
 }
 
