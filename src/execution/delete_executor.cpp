@@ -31,17 +31,17 @@ void DeleteExecutor::Init() {
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   Tuple child_tuple;
   RID child_tuple_rid;
-  if (!child_executor_ ->Next(&child_tuple,&child_tuple_rid)) {
-    return false;
+  while (child_executor_ ->Next(&child_tuple,&child_tuple_rid)) {
+    for (auto index_info : index_info_) {
+      auto index_tuple =
+          child_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs());
+      std::vector<RID> rids{};
+      index_info->index_->ScanKey(index_tuple, &rids, exec_ctx_->GetTransaction());
+      index_info->index_->DeleteEntry(index_tuple, rids[0], exec_ctx_->GetTransaction());
+    }
+    table_info_->table_->MarkDelete(child_tuple_rid, exec_ctx_->GetTransaction());
   }
-  for (auto index_info : index_info_) {
-    auto index_tuple = child_tuple.KeyFromTuple(table_info_ ->schema_, index_info->key_schema_,
-                                                index_info->index_->GetKeyAttrs());
-    std::vector<RID> rids{};
-    index_info ->index_ ->ScanKey(index_tuple,&rids,exec_ctx_ ->GetTransaction());
-    index_info ->index_ ->DeleteEntry(index_tuple,rids[0],exec_ctx_ ->GetTransaction());
-  }
-  return table_info_ ->table_ ->MarkDelete(child_tuple_rid,exec_ctx_ ->GetTransaction());
+  return false;
 }
 
 }  // namespace bustub

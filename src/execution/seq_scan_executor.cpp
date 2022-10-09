@@ -11,31 +11,62 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/executors/seq_scan_executor.h"
+#include "execution/expressions/constant_value_expression.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
-SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) :
-                                                                                           AbstractExecutor(exec_ctx),plan_(plan),table_info_(exec_ctx ->GetCatalog() ->GetTable(plan ->GetTableOid())),
-                                                                                           iter_(table_info_ ->table_ ->Begin(exec_ctx ->GetTransaction())) {}
+SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
+    : AbstractExecutor(exec_ctx), plan_(plan), cur_(nullptr, RID{}, nullptr), end_(nullptr, RID{}, nullptr) {
+  table_info_ = exec_ctx_->GetCatalog()->GetTable(plan_->GetTableOid());
 
-void SeqScanExecutor::Init() {}
+  out_schema_idx_.reserve(plan_->OutputSchema()->GetColumnCount());
+  try {
+    for (uint32_t i = 0; i < plan_->OutputSchema()->GetColumnCount(); i++) {
+      auto col_name = plan_->OutputSchema()->GetColumn(i).GetName();
+      out_schema_idx_.push_back(table_info_->schema_.GetColIdx(col_name));
+    }
+  } catch (const std::logic_error &error) {
+    for (uint32_t i = 0; i < plan_->OutputSchema()->GetColumnCount(); i++) {
+      out_schema_idx_.push_back(i);
+    }
+  }
 
-auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  auto end_iter = table_info_ ->table_ ->End();
-  while (iter_ != end_iter) {
-    if (plan_ ->GetPredicate() != nullptr) {
-      if (plan_->GetPredicate()->Evaluate(&(*iter_), GetOutputSchema()).GetAs<bool>()) {
-        *tuple = *iter_;
-        iter_++;
-        *rid = tuple->GetRid();
-        return true;
+  if (plan_->GetPredicate() != nullptr) {
+    predicate_ = plan_->GetPredicate();
+  } else {
+    is_alloc_ = true;
+    predicate_ = new ConstantValueExpression(ValueFactory::GetBooleanValue(true));
+  }
+}
+
+SeqScanExecutor::~SeqScanExecutor() {
+  if (is_alloc_) {
+    delete predicate_;
+  }
+  predicate_ = nullptr;
+}
+
+void SeqScanExecutor::Init() {
+  cur_ = table_info_->table_->Begin(exec_ctx_->GetTransaction());
+  end_ = table_info_->table_->End();
+}
+
+bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
+  while (cur_ != end_) {
+    auto temp = cur_++;
+    auto value = predicate_->Evaluate(&(*temp), &table_info_->schema_);
+    if (value.GetAs<bool>()) {
+      // Only keep the columns of the out schema
+      std::vector<Value> values;
+      values.reserve(out_schema_idx_.size());
+      for (auto i : out_schema_idx_) {
+        values.push_back(temp->GetValue(&table_info_->schema_, i));
       }
-    } else {
-      *tuple = *iter_;
-      iter_++;
+      *tuple = Tuple(values, plan_->OutputSchema());
+      *rid = temp->GetRid();
       return true;
     }
-    iter_++;
   }
   return false;
 }
