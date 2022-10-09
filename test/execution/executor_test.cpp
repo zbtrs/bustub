@@ -86,6 +86,382 @@ using ValueType = RID;
 using ComparatorType = GenericComparator<8>;
 using HashFunctionType = HashFunction<KeyType>;
 
+/** Index creation parameters for a BIGINT key */
+constexpr static const auto BIGINT_SIZE = 8;
+using BigintKeyType = GenericKey<BIGINT_SIZE>;
+using BigintValueType = RID;
+using BigintComparatorType = GenericComparator<BIGINT_SIZE>;
+using BigintHashFunctionType = HashFunction<BigintKeyType>;
+
+# define GradingExecutorTest ExecutorTest
+
+TEST_F(GradingExecutorTest, RawInsert2) {
+  // Create Values to insert
+  std::vector<Value> val1{ValueFactory::GetIntegerValue(200), ValueFactory::GetIntegerValue(20)};
+  std::vector<Value> val2{ValueFactory::GetIntegerValue(201), ValueFactory::GetIntegerValue(21)};
+  std::vector<Value> val3{ValueFactory::GetIntegerValue(202), ValueFactory::GetIntegerValue(22)};
+  std::vector<std::vector<Value>> raw_vals{val1, val2, val3};
+
+  // Create insert plan node
+  auto table_info = GetExecutorContext()->GetCatalog()->GetTable("empty_table2");
+  InsertPlanNode insert_plan{std::move(raw_vals), table_info->oid_};
+
+  auto key_schema = ParseCreateStatement("a bigint");
+  auto *index_info =
+      GetExecutorContext()->GetCatalog()->CreateIndex<BigintKeyType, BigintValueType, BigintComparatorType>(
+          GetTxn(), "index1", "empty_table2", table_info->schema_, *key_schema, {0}, BIGINT_SIZE,
+          BigintHashFunctionType{});
+  ASSERT_NE(Catalog::NULL_INDEX_INFO, index_info);
+
+  // Execute the insert
+  std::vector<Tuple> result_set{};
+  GetExecutionEngine()->Execute(&insert_plan, nullptr, GetTxn(), GetExecutorContext());
+  // Insert should not modify the result set
+  ASSERT_EQ(0, result_set.size());
+
+  // Iterate through table make sure that values were inserted
+
+  result_set.clear();
+
+  // SELECT * FROM empty_table2;
+  auto &schema = table_info->schema_;
+  auto col_a = MakeColumnValueExpression(schema, 0, "colA");
+  auto col_b = MakeColumnValueExpression(schema, 0, "colB");
+  auto out_schema = MakeOutputSchema({{"colA", col_a}, {"colB", col_b}});
+  SeqScanPlanNode scan_plan{out_schema, nullptr, table_info->oid_};
+
+  GetExecutionEngine()->Execute(&scan_plan, &result_set, GetTxn(), GetExecutorContext());
+
+  // Size
+  ASSERT_EQ(3, result_set.size());
+
+  // First value
+  ASSERT_EQ(result_set[0].GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>(), 200);
+  ASSERT_EQ(result_set[0].GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>(), 20);
+
+  // Second value
+  ASSERT_EQ(result_set[1].GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>(), 201);
+  ASSERT_EQ(result_set[1].GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>(), 21);
+
+  // Third value
+  ASSERT_EQ(result_set[2].GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>(), 202);
+  ASSERT_EQ(result_set[2].GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>(), 22);
+
+  // Get RID from index, fetch tuple and then compare
+  std::vector<RID> rids{};
+  for (size_t i = 0; i < result_set.size(); ++i) {
+    // Scan the index for the RID(s) associated with the tuple
+    index_info->index_->ScanKey(result_set[i], &rids, GetTxn());
+
+    // Fetch the tuple from the table
+    Tuple indexed_tuple;
+    ASSERT_TRUE(table_info->table_->GetTuple(rids[i], &indexed_tuple, GetTxn()));
+
+    ASSERT_EQ(indexed_tuple.GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>(),
+              result_set[i].GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>());
+    ASSERT_EQ(indexed_tuple.GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>(),
+              result_set[i].GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>());
+  }
+}
+
+TEST_F(GradingExecutorTest, RawInsert1) {
+  // Create Values to insert
+  std::vector<Value> val1{ValueFactory::GetIntegerValue(100), ValueFactory::GetIntegerValue(10)};
+  std::vector<Value> val2{ValueFactory::GetIntegerValue(101), ValueFactory::GetIntegerValue(11)};
+  std::vector<Value> val3{ValueFactory::GetIntegerValue(102), ValueFactory::GetIntegerValue(12)};
+  std::vector<std::vector<Value>> raw_vals{val1, val2, val3};
+
+  std::vector<Tuple> result_set{};
+
+  // Create insert plan node
+  auto table_info = GetExecutorContext()->GetCatalog()->GetTable("empty_table2");
+  InsertPlanNode insert_plan{std::move(raw_vals), table_info->oid_};
+
+  GetExecutionEngine()->Execute(&insert_plan, &result_set, GetTxn(), GetExecutorContext());
+
+  // InsertExecutor should not modify the result set
+  ASSERT_EQ(result_set.size(), 0);
+
+  // Iterate through table make sure that values were inserted.
+
+  auto &schema = table_info->schema_;
+  auto col_a = MakeColumnValueExpression(schema, 0, "colA");
+  auto col_b = MakeColumnValueExpression(schema, 0, "colB");
+  auto out_schema = MakeOutputSchema({{"colA", col_a}, {"colB", col_b}});
+  SeqScanPlanNode scan_plan{out_schema, nullptr, table_info->oid_};
+
+  GetExecutionEngine()->Execute(&scan_plan, &result_set, GetTxn(), GetExecutorContext());
+
+  // Size
+  ASSERT_EQ(result_set.size(), 3);
+
+  // First value
+  ASSERT_EQ(result_set[0].GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>(), 100);
+  ASSERT_EQ(result_set[0].GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>(), 10);
+
+  // Second value
+  ASSERT_EQ(result_set[1].GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>(), 101);
+  ASSERT_EQ(result_set[1].GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>(), 11);
+
+  // Third value
+  ASSERT_EQ(result_set[2].GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>(), 102);
+  ASSERT_EQ(result_set[2].GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>(), 12);
+}
+
+// SELECT colA, colB FROM test_1
+TEST_F(GradingExecutorTest, SequentialScan) {
+  // Construct query plan
+  TableInfo *table_info = GetExecutorContext()->GetCatalog()->GetTable("test_1");
+  Schema &schema = table_info->schema_;
+  auto *cola_a = MakeColumnValueExpression(schema, 0, "colA");
+  auto *cola_b = MakeColumnValueExpression(schema, 0, "colB");
+  auto *out_schema = MakeOutputSchema({{"colA", cola_a}, {"colB", cola_b}});
+  SeqScanPlanNode plan{out_schema, nullptr, table_info->oid_};
+
+  // Execute sequential scan
+  std::vector<Tuple> result_set{};
+  GetExecutionEngine()->Execute(&plan, &result_set, GetTxn(), GetExecutorContext());
+
+  // Verify results
+  ASSERT_EQ(result_set.size(), 1000);
+}
+
+// SELECT colA, colB FROM test_1 WHERE colA < 500
+TEST_F(GradingExecutorTest, SequentialScanWithPredicate) {
+  // Construct query plan
+  TableInfo *table_info = GetExecutorContext()->GetCatalog()->GetTable("test_1");
+  Schema &schema = table_info->schema_;
+  auto *cola_a = MakeColumnValueExpression(schema, 0, "colA");
+  auto *cola_b = MakeColumnValueExpression(schema, 0, "colB");
+  auto *const500 = MakeConstantValueExpression(ValueFactory::GetIntegerValue(500));
+  auto *predicate = MakeComparisonExpression(cola_a, const500, ComparisonType::LessThan);
+  auto *out_schema = MakeOutputSchema({{"colA", cola_a}, {"colB", cola_b}});
+  SeqScanPlanNode plan{out_schema, predicate, table_info->oid_};
+
+  // Execute sequential scan
+  std::vector<Tuple> result_set{};
+  GetExecutionEngine()->Execute(&plan, &result_set, GetTxn(), GetExecutorContext());
+
+  // Verify results
+  for (const auto &tuple : result_set) {
+    ASSERT_TRUE(tuple.GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int32_t>() < 500);
+    ASSERT_TRUE(tuple.GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>() < 10);
+  }
+
+  ASSERT_EQ(result_set.size(), 500);
+}
+
+// SELECT colA, colB FROM test_1 WHERE colA > 1000
+TEST_F(GradingExecutorTest, SequentialScanWithZeroMatchPredicate) {
+  // Construct query plan
+  TableInfo *table_info = GetExecutorContext()->GetCatalog()->GetTable("test_1");
+  Schema &schema = table_info->schema_;
+  auto *cola_a = MakeColumnValueExpression(schema, 0, "colA");
+  auto *cola_b = MakeColumnValueExpression(schema, 0, "colB");
+  auto *const1000 = MakeConstantValueExpression(ValueFactory::GetIntegerValue(1000));
+  auto *predicate = MakeComparisonExpression(cola_a, const1000, ComparisonType::GreaterThan);
+  auto *out_schema = MakeOutputSchema({{"colA", cola_a}, {"colB", cola_b}});
+  SeqScanPlanNode plan{out_schema, predicate, table_info->oid_};
+
+  // Execute sequential scan
+  std::vector<Tuple> result_set{};
+  GetExecutionEngine()->Execute(&plan, &result_set, GetTxn(), GetExecutorContext());
+
+  // Verify results
+  ASSERT_EQ(result_set.size(), 0);
+}
+
+// SELECT colA FROM empty_table
+TEST_F(GradingExecutorTest, SequentialScanEmptyTable) {
+  // Construct query plan
+  TableInfo *table_info = GetExecutorContext()->GetCatalog()->GetTable("empty_table");
+  Schema &schema = table_info->schema_;
+  auto *cola_a = MakeColumnValueExpression(schema, 0, "colA");
+  auto *out_schema = MakeOutputSchema({{"colA", cola_a}});
+  SeqScanPlanNode plan{out_schema, nullptr, table_info->oid_};
+
+  // Execute sequential scan
+  std::vector<Tuple> result_set{};
+  GetExecutionEngine()->Execute(&plan, &result_set, GetTxn(), GetExecutorContext());
+
+  // Verify results
+  ASSERT_EQ(result_set.size(), 0);
+}
+
+// SELECT colA, colB, colC FROM test_7
+TEST_F(GradingExecutorTest, SequentialScanCyclicColumn) {
+  // Construct query plan
+  auto *table_info = GetExecutorContext()->GetCatalog()->GetTable("test_7");
+  auto &schema = table_info->schema_;
+  auto *cola_a = MakeColumnValueExpression(schema, 0, "colA");
+  auto *cola_b = MakeColumnValueExpression(schema, 0, "colB");
+  auto *col_c = MakeColumnValueExpression(schema, 0, "colC");
+  auto *out_schema = MakeOutputSchema({{"colA", cola_a}, {"colB", cola_b}, {"colC", col_c}});
+  SeqScanPlanNode plan{out_schema, nullptr, table_info->oid_};
+
+  // Execute sequential scan
+  std::vector<Tuple> result_set{};
+  GetExecutionEngine()->Execute(&plan, &result_set, GetTxn(), GetExecutorContext());
+
+  // Verify results
+  ASSERT_EQ(result_set.size(), TEST7_SIZE);
+
+  for (auto i = 0UL; i < result_set.size(); ++i) {
+    auto &tuple = result_set[i];
+    ASSERT_EQ(tuple.GetValue(out_schema, out_schema->GetColIdx("colA")).GetAs<int64_t>(), static_cast<int64_t>(i));
+    ASSERT_EQ(tuple.GetValue(out_schema, out_schema->GetColIdx("colB")).GetAs<int32_t>(), static_cast<int32_t>(i));
+    ASSERT_EQ(tuple.GetValue(out_schema, out_schema->GetColIdx("colC")).GetAs<int32_t>(),
+              static_cast<int32_t>((i % 10)));
+  }
+}
+
+// SELECT colA AS col1, colB AS col2 FROM test_1
+TEST_F(GradingExecutorTest, SchemaChangeSequentialScan) {
+  // Construct query plan
+  TableInfo *table_info = GetExecutorContext()->GetCatalog()->GetTable("test_1");
+  Schema &schema = table_info->schema_;
+  auto *cola_a = MakeColumnValueExpression(schema, 0, "colA");
+  auto *cola_b = MakeColumnValueExpression(schema, 0, "colB");
+  auto *out_schema = MakeOutputSchema({{"col1", cola_a}, {"col2", cola_b}});
+  SeqScanPlanNode plan{out_schema, nullptr, table_info->oid_};
+
+  // Execute sequential scan
+  std::vector<Tuple> result_set{};
+  GetExecutionEngine()->Execute(&plan, &result_set, GetTxn(), GetExecutorContext());
+
+  // Verify results
+  ASSERT_EQ(result_set.size(), 1000);
+}
+
+// SELECT colA FROM test_4
+// READ_UNCOMMITTED isolation level
+TEST_F(GradingExecutorTest, ConcurrentScanReadUncommitted) {
+  constexpr const auto n_tasks = 10UL;
+  auto task = [&]() {
+    // make a new transaction for the task to run
+    auto txn = std::unique_ptr<Transaction>{GetTxnManager()->Begin(nullptr, IsolationLevel::READ_UNCOMMITTED)};
+    auto exec_ctx =
+        std::make_unique<ExecutorContext>(txn.get(), GetCatalog(), GetBPM(), GetTxnManager(), GetLockManager());
+
+    // make a new execution engine to execute the operation
+    auto exec_engine = std::make_unique<ExecutionEngine>(GetBPM(), GetTxnManager(), GetCatalog());
+
+    // construct a query plan
+    auto *table_info = exec_ctx->GetCatalog()->GetTable("test_4");
+    auto &schema = table_info->schema_;
+    auto cola_a = AllocateColumnValueExpression(schema, 0, "colA");
+    auto out_schema = AllocateOutputSchema({{"colA", cola_a.get()}});
+    SeqScanPlanNode plan{out_schema.get(), nullptr, table_info->oid_};
+
+    // execute sequential scan
+    std::vector<Tuple> result_set{};
+    EXPECT_TRUE(exec_engine->Execute(&plan, &result_set, txn.get(), exec_ctx.get()));
+    GetTxnManager()->Commit(txn.get());
+
+    const auto success = std::all_of(result_set.cbegin(), result_set.cend(), [&, c = 0LL](const Tuple &t) mutable {
+      return t.GetValue(&schema, out_schema->GetColIdx("colA")).GetAs<int64_t>() == static_cast<int64_t>(c++);
+    });
+    EXPECT_EQ(result_set.size(), TEST4_SIZE);
+    EXPECT_TRUE(success);
+  };
+
+  std::vector<std::thread> tasks{};
+  tasks.reserve(n_tasks);
+  for (auto _ = 0UL; _ < n_tasks; ++_) {
+    tasks.emplace_back(task);
+  }
+
+  for (auto &task : tasks) {
+    task.join();
+  }
+}
+
+// SELECT colA FROM test_4
+// READ_COMMITTED isolation level
+TEST_F(GradingExecutorTest, ConcurrentScanReadCommitted) {
+  constexpr const auto n_tasks = 10UL;
+  auto task = [&]() {
+    // make a new transaction for the task to run
+    auto txn = std::unique_ptr<Transaction>{GetTxnManager()->Begin(nullptr, IsolationLevel::READ_COMMITTED)};
+    auto exec_ctx =
+        std::make_unique<ExecutorContext>(txn.get(), GetCatalog(), GetBPM(), GetTxnManager(), GetLockManager());
+
+    // make a new execution engine to execute the operation
+    auto exec_engine = std::make_unique<ExecutionEngine>(GetBPM(), GetTxnManager(), GetCatalog());
+
+    // construct a query plan
+    auto *table_info = exec_ctx->GetCatalog()->GetTable("test_4");
+    auto &schema = table_info->schema_;
+    auto cola_a = AllocateColumnValueExpression(schema, 0, "colA");
+    auto out_schema = AllocateOutputSchema({{"colA", cola_a.get()}});
+    SeqScanPlanNode plan{out_schema.get(), nullptr, table_info->oid_};
+
+    // execute sequential scan
+    std::vector<Tuple> result_set{};
+    EXPECT_TRUE(exec_engine->Execute(&plan, &result_set, txn.get(), exec_ctx.get()));
+    GetTxnManager()->Commit(txn.get());
+
+    const auto success = std::all_of(result_set.cbegin(), result_set.cend(), [&, c = 0LL](const Tuple &t) mutable {
+      return t.GetValue(&schema, out_schema->GetColIdx("colA")).GetAs<int64_t>() == static_cast<int64_t>(c++);
+    });
+    EXPECT_EQ(result_set.size(), TEST4_SIZE);
+    EXPECT_TRUE(success);
+  };
+
+  std::vector<std::thread> tasks{};
+  tasks.reserve(n_tasks);
+  for (auto _ = 0UL; _ < n_tasks; ++_) {
+    tasks.emplace_back(task);
+  }
+
+  for (auto &task : tasks) {
+    task.join();
+  }
+}
+
+// SELECT colA FROM test_4
+// REPEATABLE_READ isolation level
+TEST_F(GradingExecutorTest, ConcurrentScanRepeatableRead) {
+  constexpr const auto n_tasks = 10UL;
+  auto task = [&]() {
+    // make a new transaction for the task to run
+    auto txn = std::unique_ptr<Transaction>{GetTxnManager()->Begin(nullptr, IsolationLevel::REPEATABLE_READ)};
+    auto exec_ctx =
+        std::make_unique<ExecutorContext>(txn.get(), GetCatalog(), GetBPM(), GetTxnManager(), GetLockManager());
+
+    // make a new execution engine to execute the operation
+    auto exec_engine = std::make_unique<ExecutionEngine>(GetBPM(), GetTxnManager(), GetCatalog());
+
+    // construct a query plan
+    auto *table_info = exec_ctx->GetCatalog()->GetTable("test_4");
+    auto &schema = table_info->schema_;
+    auto cola_a = AllocateColumnValueExpression(schema, 0, "colA");
+    auto out_schema = AllocateOutputSchema({{"colA", cola_a.get()}});
+    SeqScanPlanNode plan{out_schema.get(), nullptr, table_info->oid_};
+
+    // execute sequential scan
+    std::vector<Tuple> result_set{};
+    EXPECT_TRUE(exec_engine->Execute(&plan, &result_set, txn.get(), exec_ctx.get()));
+    GetTxnManager()->Commit(txn.get());
+
+    const auto success = std::all_of(result_set.cbegin(), result_set.cend(), [&, c = 0LL](const Tuple &t) mutable {
+      return t.GetValue(&schema, out_schema->GetColIdx("colA")).GetAs<int64_t>() == static_cast<int64_t>(c++);
+    });
+    EXPECT_EQ(result_set.size(), TEST4_SIZE);
+    EXPECT_TRUE(success);
+  };
+
+  std::vector<std::thread> tasks{};
+  tasks.reserve(n_tasks);
+  for (auto _ = 0UL; _ < n_tasks; ++_) {
+    tasks.emplace_back(task);
+  }
+
+  for (auto &task : tasks) {
+    task.join();
+  }
+}
+
 // SELECT col_a, col_b FROM test_1 WHERE col_a < 500
 TEST_F(ExecutorTest, SimpleSeqScanTest) {
   // Construct query plan
@@ -111,7 +487,7 @@ TEST_F(ExecutorTest, SimpleSeqScanTest) {
 }
 
 // INSERT INTO empty_table2 VALUES (100, 10), (101, 11), (102, 12)
-TEST_F(ExecutorTest, SimpleRawInsertTest) {
+TEST_F(ExecutorTest, DISABLED_SimpleRawInsertTest) {
   // Create Values to insert
   std::vector<Value> val1{ValueFactory::GetIntegerValue(100), ValueFactory::GetIntegerValue(10)};
   std::vector<Value> val2{ValueFactory::GetIntegerValue(101), ValueFactory::GetIntegerValue(11)};
@@ -153,7 +529,7 @@ TEST_F(ExecutorTest, SimpleRawInsertTest) {
 }
 
 // INSERT INTO empty_table2 SELECT col_a, col_b FROM test_1 WHERE col_a < 500
-TEST_F(ExecutorTest, SimpleSelectInsertTest) {
+TEST_F(ExecutorTest, DISABLED_SimpleSelectInsertTest) {
   const Schema *out_schema1;
   std::unique_ptr<AbstractPlanNode> scan_plan1;
   {
@@ -205,7 +581,7 @@ TEST_F(ExecutorTest, SimpleSelectInsertTest) {
 }
 
 // INSERT INTO empty_table2 VALUES (100, 10), (101, 11), (102, 12)
-TEST_F(ExecutorTest, SimpleRawInsertWithIndexTest) {
+TEST_F(ExecutorTest, DISABLED_SimpleRawInsertWithIndexTest) {
   // Create Values to insert
   std::vector<Value> val1{ValueFactory::GetIntegerValue(100), ValueFactory::GetIntegerValue(10)};
   std::vector<Value> val2{ValueFactory::GetIntegerValue(101), ValueFactory::GetIntegerValue(11)};
@@ -563,13 +939,12 @@ TEST_F(ExecutorTest, DISABLED_SimpleGroupByAggregation) {
     std::vector<const AbstractExpression *> aggregate_cols{col_a, col_c};
     std::vector<AggregationType> agg_types{AggregationType::CountAggregate, AggregationType::SumAggregate};
     const AbstractExpression *count_a = MakeAggregateValueExpression(false, 0);
-    const AbstractExpression *sum_c = MakeAggregateValueExpression(false, 1);
     // Make having clause
     const AbstractExpression *having = MakeComparisonExpression(
         count_a, MakeConstantValueExpression(ValueFactory::GetIntegerValue(100)), ComparisonType::GreaterThan);
 
     // Create plan
-    agg_schema = MakeOutputSchema({{"countA", count_a}, {"colB", groupby_b}, {"sumC", sum_c}});
+    agg_schema = MakeOutputSchema({{"countA", count_a}, {"colB", groupby_b}});
     agg_plan = std::make_unique<AggregationPlanNode>(agg_schema, scan_plan.get(), having, std::move(group_by_cols),
                                                      std::move(aggregate_cols), std::move(agg_types));
   }
@@ -581,9 +956,6 @@ TEST_F(ExecutorTest, DISABLED_SimpleGroupByAggregation) {
   for (const auto &tuple : result_set) {
     // Should have count_a > 100
     ASSERT_GT(tuple.GetValue(agg_schema, agg_schema->GetColIdx("countA")).GetAs<int32_t>(), 100);
-    // Should have sum_c >= 0. Data for test_1 table is randomly generated, where colC is uniformly distributed from
-    // 0 to 9999. So we can only ensure sumC column exists by checking if it's >= 0 here.
-    ASSERT_GE(tuple.GetValue(agg_schema, agg_schema->GetColIdx("sumC")).GetAs<int32_t>(), 0);
     // Should have unique col_bs.
     auto col_b = tuple.GetValue(agg_schema, agg_schema->GetColIdx("colB")).GetAs<int32_t>();
     ASSERT_EQ(encountered.count(col_b), 0);

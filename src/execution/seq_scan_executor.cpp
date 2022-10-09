@@ -23,7 +23,7 @@ void SeqScanExecutor::Init() {}
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto end_iter = table_info_ ->table_ ->End();
   while (iter_ != end_iter) {
-    if (plan_ ->GetPredicate()) {
+    if (plan_ ->GetPredicate() != nullptr) {
       if (plan_->GetPredicate()->Evaluate(&(*iter_), GetOutputSchema()).GetAs<bool>()) {
         *tuple = *iter_;
         iter_++;
