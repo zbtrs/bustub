@@ -16,14 +16,15 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
+#include "execution/executors/nested_loop_join_executor.h"
+#include "execution/plans/mock_scan_plan.h"
+#include "test_util.h"                   // NOLINT
 #include "buffer/buffer_pool_manager_instance.h"
 #include "concurrency/transaction_manager.h"
 #include "execution/execution_engine.h"
 #include "execution/executor_context.h"
 #include "execution/executors/aggregation_executor.h"
 #include "execution/executors/insert_executor.h"
-#include "execution/executors/nested_loop_join_executor.h"
 #include "execution/expressions/aggregate_value_expression.h"
 #include "execution/expressions/column_value_expression.h"
 #include "execution/expressions/comparison_expression.h"
@@ -380,6 +381,62 @@ TEST_F(ExecutorTest, SimpleDeleteTest) {
   std::vector<RID> rids{};
   index_info->index_->ScanKey(index_key, &rids, GetTxn());
   ASSERT_TRUE(rids.empty());
+}
+
+TEST_F(GradingExecutorTest, NestedLoopJoinIOCost) {
+  // The sizes of the individual mock tables
+  const std::size_t scan0_size = 10;
+  const std::size_t scan1_size = 10;
+
+  // All all of the tuples have the same value
+  const std::size_t expected_join_size = scan0_size * scan1_size;
+
+  std::unique_ptr<Schema> scan0_schema;
+  std::unique_ptr<MockScanPlanNode> scan0;
+  {
+    std::vector<Column> columns{Column{"colA", TypeId::INTEGER}, {Column{"colB", TypeId::INTEGER}}};
+    scan0_schema = std::make_unique<Schema>(columns);
+    scan0 = std::make_unique<MockScanPlanNode>(scan0_schema.get(), scan0_size);
+  }
+
+  std::unique_ptr<Schema> scan1_schema;
+  std::unique_ptr<MockScanPlanNode> scan1;
+  {
+    std::vector<Column> columns{Column{"colA", TypeId::INTEGER}, {Column{"colB", TypeId::INTEGER}}};
+    scan1_schema = std::make_unique<Schema>(columns);
+    scan1 = std::make_unique<MockScanPlanNode>(scan1_schema.get(), scan1_size);
+  }
+
+  // Construct the join plan
+  const Schema *out_schema;
+  std::unique_ptr<NestedLoopJoinPlanNode> join_plan{};
+  {
+    auto *table0_col_a = MakeColumnValueExpression(*scan0_schema, 0, "colA");
+    auto *table0_col_b = MakeColumnValueExpression(*scan0_schema, 0, "colB");
+
+    auto *table1_col_a = MakeColumnValueExpression(*scan1_schema, 1, "colA");
+    auto *table1_col_b = MakeColumnValueExpression(*scan1_schema, 1, "colB");
+
+    auto predicate = MakeComparisonExpression(table0_col_a, table1_col_a, ComparisonType::Equal);
+
+    out_schema = MakeOutputSchema({{"table0_colA", table0_col_a},
+                                   {"table0_colB", table0_col_b},
+                                   {"table1_colA", table1_col_a},
+                                   {"table1_colB", table1_col_b}});
+
+    join_plan = std::make_unique<NestedLoopJoinPlanNode>(
+        out_schema, std::vector<const AbstractPlanNode *>{scan0.get(), scan1.get()}, predicate);
+  }
+
+  std::vector<Tuple> result_set{};
+  GetExecutionEngine()->Execute(join_plan.get(), &result_set, GetTxn(), GetExecutorContext());
+
+  ASSERT_EQ(expected_join_size, result_set.size());
+
+  // Scan 0 should only be polled once per tuple
+  ASSERT_EQ(scan0_size, scan0->PollCount());
+  // Scan 1 should be polled SCAN1_SIZE for each tuple in the outer table
+  ASSERT_EQ(scan0_size * scan1_size, scan1->PollCount());
 }
 
 // SELECT test_1.col_a, test_1.col_b, test_2.col1, test_2.col3 FROM test_1 JOIN test_2 ON test_1.col_a = test_2.col1;
