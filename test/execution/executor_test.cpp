@@ -552,6 +552,68 @@ TEST_F(ExecutorTest, SimpleHashJoinTest) {
   }
 }
 
+// SELECT test_7.colA, test_7.colB, test_8.colA, test_8.colB FROM test_7 JOIN test_8 ON test_7.colC = test_8.colB
+TEST_F(GradingExecutorTest, HashJoinOuterTableDuplicateJoinKeys) {
+  // Construct sequential scan of table test_7
+  const Schema *out_schema1{};
+  std::unique_ptr<AbstractPlanNode> scan_plan1{};
+  {
+    auto *table_info = GetExecutorContext()->GetCatalog()->GetTable("test_7");
+    auto &schema = table_info->schema_;
+    auto *col_a = MakeColumnValueExpression(schema, 0, "colA");
+    auto *col_b = MakeColumnValueExpression(schema, 0, "colB");
+    auto *col_c = MakeColumnValueExpression(schema, 0, "colC");
+    out_schema1 = MakeOutputSchema({{"colA", col_a}, {"colB", col_b}, {"colC", col_c}});
+    scan_plan1 = std::make_unique<SeqScanPlanNode>(out_schema1, nullptr, table_info->oid_);
+  }
+
+  // Construct sequential scan of table test_8
+  const Schema *out_schema2{};
+  std::unique_ptr<AbstractPlanNode> scan_plan2{};
+  {
+    auto *table_info = GetExecutorContext()->GetCatalog()->GetTable("test_8");
+    auto &schema = table_info->schema_;
+    auto *col_a = MakeColumnValueExpression(schema, 0, "colA");
+    auto *col_b = MakeColumnValueExpression(schema, 0, "colB");
+    out_schema2 = MakeOutputSchema({{"colA", col_a}, {"colB", col_b}});
+    scan_plan2 = std::make_unique<SeqScanPlanNode>(out_schema2, nullptr, table_info->oid_);
+  }
+
+  // Construct the join plan
+  const Schema *out_schema{};
+  std::unique_ptr<HashJoinPlanNode> join_plan{};
+  {
+    // Columns from Table 4 have a tuple index of 0 because they are the left side of the join (outer relation)
+    auto *table7_col_a = MakeColumnValueExpression(*out_schema1, 0, "colA");
+    auto *table7_col_b = MakeColumnValueExpression(*out_schema1, 0, "colB");
+    auto *table7_col_c = MakeColumnValueExpression(*out_schema1, 0, "colC");
+
+    // Columns from Table 6 have a tuple index of 1 because they are the right side of the join (inner relation)
+    auto *table8_col_a = MakeColumnValueExpression(*out_schema2, 1, "colA");
+    auto *table8_col_b = MakeColumnValueExpression(*out_schema2, 1, "colB");
+
+    out_schema = MakeOutputSchema({{"table7_colA", table7_col_a},
+                                   {"table7_colB", table7_col_b},
+                                   {"table8_colA", table8_col_a},
+                                   {"table8_colB", table8_col_b}});
+
+    join_plan = std::make_unique<HashJoinPlanNode>(
+        out_schema, std::vector<const AbstractPlanNode *>{scan_plan1.get(), scan_plan2.get()}, table7_col_c,
+        table8_col_b);
+  }
+
+  std::vector<Tuple> result_set{};
+  GetExecutionEngine()->Execute(join_plan.get(), &result_set, GetTxn(), GetExecutorContext());
+
+  // Table 7 contains 100 tuples, partitioned into 10 groups of
+  // 10 that share a join key (colC); Table 8 contains 10 tuples,
+  // with values for colB from 0 .. 9; for each outer tuple, we
+  // should find exactly one inner tuple to match
+
+  // Result set should be empty
+  ASSERT_EQ(result_set.size(), TEST7_SIZE);
+}
+
 // SELECT COUNT(col_a), SUM(col_a), min(col_a), max(col_a) from test_1;
 TEST_F(ExecutorTest, DISABLED_SimpleAggregationTest) {
   const Schema *scan_schema;
