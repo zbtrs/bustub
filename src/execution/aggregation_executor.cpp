@@ -55,9 +55,7 @@ if (plan_ ->GetHaving() ->EvaluateAggregate(values,aht_iterator_ .Val().aggregat
     auto temp_iter = aht_iterator_;
     ++aht_iterator_;
     if (plan_->GetHaving() != nullptr &&
-        !plan_->GetHaving()
-             ->EvaluateAggregate(temp_iter.Key().group_bys_, temp_iter.Val().aggregates_)
-             .GetAs<bool>()) {
+        !plan_->GetHaving()->EvaluateAggregate(temp_iter.Key().group_bys_, temp_iter.Val().aggregates_).GetAs<bool>()) {
       continue;
     }
     std::vector<Value> values;
@@ -72,7 +70,6 @@ if (plan_ ->GetHaving() ->EvaluateAggregate(values,aht_iterator_ .Val().aggregat
   return false;
 }
 
-  auto AggregationExecutor::GetChildExecutor() const->const AbstractExecutor * { return child_.get(); }
-
+auto AggregationExecutor::GetChildExecutor() const -> const AbstractExecutor * { return child_.get(); }
 
 }  // namespace bustub

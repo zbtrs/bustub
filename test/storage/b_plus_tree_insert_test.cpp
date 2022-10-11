@@ -35,10 +35,8 @@
 
 namespace bustub {
 
-
-
 template <typename... Args>
-void LaunchParallelTest(uint64_t num_threads, uint64_t txn_id_start, Args &&... args) {
+void LaunchParallelTest(uint64_t num_threads, uint64_t txn_id_start, Args &&...args) {
   std::vector<std::thread> thread_group;
 
   // Launch a group of threads
@@ -216,7 +214,6 @@ void BPlusTreeBenchmarkCall() {
     delete bpm;
     remove("test.db");
     remove("test.log");
-
   }
   if (success) {
     ss << (time_total.count() / static_cast<double>(NUM_ITERS));
@@ -233,7 +230,6 @@ TEST(BPlusTreeTest, DISABLED_BPlusTreeBenchmark) {
   remove("test.log");
   TEST_TIMEOUT_FAIL_END(1000 * 300)
 }
-
 
 TEST(BPlusTreeTests, InsertTest22) {
   // create KeyComparator and index schema

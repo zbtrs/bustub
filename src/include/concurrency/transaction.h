@@ -212,17 +212,11 @@ class Transaction {
    */
   inline void AddIntoPageSet(Page *page) { page_set_->push_back(page); }
 
-  inline void ClearPageSet() {
-    page_set_ ->clear();
-  }
+  inline void ClearPageSet() { page_set_->clear(); }
 
-  inline auto GetLastPageSetElement() ->Page* {
-    return page_set_ ->back();
-  }
+  inline auto GetLastPageSetElement() -> Page * { return page_set_->back(); }
 
-  inline void DeleteLastPageSetElement() {
-    page_set_ ->pop_back();
-  }
+  inline void DeleteLastPageSetElement() { page_set_->pop_back(); }
 
   /** @return the deleted page set */
   inline auto GetDeletedPageSet() -> std::shared_ptr<std::unordered_set<page_id_t>> { return deleted_page_set_; }

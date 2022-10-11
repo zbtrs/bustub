@@ -211,11 +211,12 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::MoveAllTo(BPlusTr
  * pages that are moved to the recipient
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *recipient, BufferPoolManager *bufferPoolManager) {
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *recipient,
+                                                      BufferPoolManager *bufferPoolManager) {
   auto element = array_[0];
-  auto first_page = reinterpret_cast<BPlusTreePage *>(bufferPoolManager ->FetchPage(element.second));
-  first_page ->SetParentPageId(recipient ->GetPageId());
-  bufferPoolManager ->UnpinPage(first_page ->GetPageId(), true);
+  auto first_page = reinterpret_cast<BPlusTreePage *>(bufferPoolManager->FetchPage(element.second));
+  first_page->SetParentPageId(recipient->GetPageId());
+  bufferPoolManager->UnpinPage(first_page->GetPageId(), true);
   recipient->CopyLastFrom(element);
   for (int i = 0; i + 1 < size_; ++i) {
     array_[i] = array_[i + 1];
@@ -241,11 +242,12 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyLastFrom(const MappingType &pair) {
  * moved to the recipient
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *recipient, BufferPoolManager *bufferPoolManager) {
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *recipient,
+                                                       BufferPoolManager *bufferPoolManager) {
   auto element = array_[size_ - 1];
-  auto last_page = reinterpret_cast<BPlusTreePage *>(bufferPoolManager ->FetchPage(element.second));
-  last_page ->SetParentPageId(recipient ->GetPageId());
-  bufferPoolManager ->UnpinPage(last_page ->GetPageId(),true);
+  auto last_page = reinterpret_cast<BPlusTreePage *>(bufferPoolManager->FetchPage(element.second));
+  last_page->SetParentPageId(recipient->GetPageId());
+  bufferPoolManager->UnpinPage(last_page->GetPageId(), true);
   recipient->CopyFirstFrom(element);
   size_--;
 }
@@ -330,7 +332,7 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::FindSiblings(KeyT
   int res = 0;
   while (l <= r) {
     int mid = (l + r) >> 1;
-    if (comparator(array_[mid].first,key) <= 0) {
+    if (comparator(array_[mid].first, key) <= 0) {
       res = mid;
       l = mid + 1;
     } else {
@@ -357,7 +359,8 @@ void BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::UpdateNewParentId
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::LookupKey(const KeyType &key, const KeyComparator &comparator) -> int {
+auto BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>::LookupKey(const KeyType &key,
+                                                                         const KeyComparator &comparator) -> int {
   if (size_ == 1) {
     return 0;
   }

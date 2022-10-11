@@ -13,7 +13,7 @@
 #include "execution/executors/insert_executor.h"
 #include "execution/executors/update_executor.h"
 #include "executor_test_util.h"  // NOLINT
-#include "test_util.h"                   // NOLINT
+#include "test_util.h"           // NOLINT
 
 namespace bustub {
 
@@ -30,7 +30,7 @@ using BigintValueType = RID;
 using BigintComparatorType = GenericComparator<BIGINT_SIZE>;
 using BigintHashFunctionType = HashFunction<BigintKeyType>;
 
-# define GradingExecutorTest ExecutorTest
+#define GradingExecutorTest ExecutorTest
 
 // Addition update
 TEST_F(GradingExecutorTest, UpdateTableAdd) {

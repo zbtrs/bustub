@@ -71,7 +71,8 @@ class BPlusTree {
   // read data from file and remove one by one
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
   // expose for test purpose
-  auto FindLeafPage(const KeyType &key, int opt, Transaction *transaction = nullptr, bool leftMost = false) -> BPlusTreePage *;
+  auto FindLeafPage(const KeyType &key, int opt, Transaction *transaction = nullptr, bool leftMost = false)
+      -> BPlusTreePage *;
 
  private:
   void StartNewTree(const KeyType &key, const ValueType &value);

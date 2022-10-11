@@ -14,22 +14,21 @@ namespace bustub {
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::IndexIterator(page_id_t page_id, page_id_t next_page_id, int size, int cursor,
-                                                                BufferPoolManager *buffer_pool) : page_id_(page_id), next_page_id_(next_page_id), size_(size), cursor_(cursor), buffer_pool_(buffer_pool) {}
+                                  BufferPoolManager *buffer_pool)
+    : page_id_(page_id), next_page_id_(next_page_id), size_(size), cursor_(cursor), buffer_pool_(buffer_pool) {}
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() = default;  // NOLINT
 
 INDEX_TEMPLATE_ARGUMENTS
-auto INDEXITERATOR_TYPE::IsEnd() -> bool {
-  return (cursor_ == size_ && next_page_id_ == INVALID_PAGE_ID);
-}
+auto INDEXITERATOR_TYPE::IsEnd() -> bool { return (cursor_ == size_ && next_page_id_ == INVALID_PAGE_ID); }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator*() -> const MappingType & {
-  auto result_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(
-      buffer_pool_ ->FetchPage(page_id_));
-  const MappingType& result = result_page ->GetItem(cursor_);
-  buffer_pool_ ->UnpinPage(result_page ->GetPageId(),false);
+  auto result_page =
+      reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(buffer_pool_->FetchPage(page_id_));
+  const MappingType &result = result_page->GetItem(cursor_);
+  buffer_pool_->UnpinPage(result_page->GetPageId(), false);
   return result;
 }
 
@@ -39,19 +38,18 @@ auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   if (cursor_ < size_ || next_page_id_ == INVALID_PAGE_ID) {
     return *this;
   }
-  auto now_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(
-      buffer_pool_ ->FetchPage(page_id_));
-  auto next_page = reinterpret_cast<BPlusTreeLeafPage<KeyType,ValueType,KeyComparator> *>(
-      buffer_pool_ ->FetchPage(now_page ->GetNextPageId()));
-  buffer_pool_ ->UnpinPage(now_page ->GetPageId(), false);
+  auto now_page =
+      reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(buffer_pool_->FetchPage(page_id_));
+  auto next_page = reinterpret_cast<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(
+      buffer_pool_->FetchPage(now_page->GetNextPageId()));
+  buffer_pool_->UnpinPage(now_page->GetPageId(), false);
   cursor_ = 0;
-  size_ = next_page ->GetSize();
-  page_id_ = next_page ->GetPageId();
-  next_page_id_ = next_page ->GetNextPageId();
-  buffer_pool_ ->UnpinPage(next_page ->GetPageId(), false);
+  size_ = next_page->GetSize();
+  page_id_ = next_page->GetPageId();
+  next_page_id_ = next_page->GetNextPageId();
+  buffer_pool_->UnpinPage(next_page->GetPageId(), false);
   return *this;
 }
-
 
 template class IndexIterator<GenericKey<4>, RID, GenericComparator<4>>;
 

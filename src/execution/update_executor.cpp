@@ -17,39 +17,37 @@ namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx),plan_(plan) {
+    : AbstractExecutor(exec_ctx), plan_(plan) {
   child_executor_ = std::move(child_executor);
-  table_info_ = exec_ctx ->GetCatalog() ->GetTable(plan ->TableOid());
-  index_info_ = exec_ctx ->GetCatalog() ->GetTableIndexes(table_info_ ->name_);
+  table_info_ = exec_ctx->GetCatalog()->GetTable(plan->TableOid());
+  index_info_ = exec_ctx->GetCatalog()->GetTableIndexes(table_info_->name_);
 }
 
-void UpdateExecutor::Init() {
-  child_executor_ ->Init();
-}
+void UpdateExecutor::Init() { child_executor_->Init(); }
 
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   Tuple child_tuple;
   RID child_tuple_rid;
-  std::vector<std::pair<Tuple,RID>> vec;
-  while (child_executor_ ->Next(&child_tuple,&child_tuple_rid)) {
-    table_info_ ->table_ ->MarkDelete(child_tuple_rid,exec_ctx_ ->GetTransaction());
+  std::vector<std::pair<Tuple, RID>> vec;
+  while (child_executor_->Next(&child_tuple, &child_tuple_rid)) {
+    table_info_->table_->MarkDelete(child_tuple_rid, exec_ctx_->GetTransaction());
     for (auto index_info : index_info_) {
       const auto index_tuple =
           child_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs());
-      index_info ->index_ ->DeleteEntry(index_tuple,child_tuple_rid,exec_ctx_ ->GetTransaction());
+      index_info->index_->DeleteEntry(index_tuple, child_tuple_rid, exec_ctx_->GetTransaction());
     }
-    vec.emplace_back(child_tuple,child_tuple_rid);
+    vec.emplace_back(child_tuple, child_tuple_rid);
   }
   for (auto &tuple_pair : vec) {
     child_tuple = tuple_pair.first;
     child_tuple_rid = tuple_pair.second;
     RID new_tupld_rid;
     auto new_tuple = GenerateUpdatedTuple(child_tuple);
-    table_info_ ->table_ ->InsertTuple(new_tuple,&new_tupld_rid,exec_ctx_ ->GetTransaction());
+    table_info_->table_->InsertTuple(new_tuple, &new_tupld_rid, exec_ctx_->GetTransaction());
     for (auto index_info : index_info_) {
       const auto index_tuple =
           new_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs());
-      index_info ->index_ ->InsertEntry(index_tuple,new_tupld_rid,exec_ctx_ ->GetTransaction());
+      index_info->index_->InsertEntry(index_tuple, new_tupld_rid, exec_ctx_->GetTransaction());
     }
   }
 
