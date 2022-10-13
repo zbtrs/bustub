@@ -23,7 +23,8 @@ auto LockManager::LockShared(Transaction *txn, const RID &rid) -> bool {
   }
   if (txn ->GetState() == TransactionState::SHRINKING || txn ->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
     txn ->SetState(TransactionState::ABORTED);
-    return false;
+    throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::LOCK_ON_SHRINKING));
+    //return false;
   }
   txn->GetSharedLockSet()->emplace(rid);
   txn ->SetState(TransactionState::GROWING);
@@ -57,20 +58,6 @@ auto LockManager::LockShared(Transaction *txn, const RID &rid) -> bool {
     lock_queue ->cv_.wait(txn_latch,[&is_compatible,&txn] { return is_compatible() || txn ->GetState() == TransactionState::ABORTED; });
   }
 
-  /*
-  if (lock_queue ->rid_lock_state_ == RIDLockState::EXCLUSIVELOCKED) {
-    lock_queue ->request_queue_.emplace_back(txn ->GetTransactionId(),LockMode::SHARED);
-    while (true) {
-      lock_queue->cv_.wait(txn_latch);
-      if (lock_queue ->request_queue_.front().txn_id_ == txn ->GetTransactionId()) {
-        lock_queue ->request_queue_.pop_front();
-        break;
-      }
-    }
-  }
-  lock_queue ->rid_lock_state_ = RIDLockState::SHARELOCKED;
-   */
-
   return true;
 }
 
@@ -80,6 +67,7 @@ auto LockManager::LockExclusive(Transaction *txn, const RID &rid) -> bool {
   }
   if (txn ->GetState() == TransactionState::SHRINKING) {
     txn ->SetState(TransactionState::ABORTED);
+    throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::LOCK_ON_SHRINKING));
     return false;
   }
   txn->GetExclusiveLockSet()->emplace(rid);
@@ -105,20 +93,6 @@ auto LockManager::LockExclusive(Transaction *txn, const RID &rid) -> bool {
     lock_queue ->cv_.wait(txn_latch,[&is_compatible,&txn] { return is_compatible() || txn ->GetState() == TransactionState::ABORTED; });
   }
 
-  /*
-  if (lock_queue ->rid_lock_state_ != RIDLockState::NONLOCK) {
-    lock_queue ->request_queue_.emplace_back(txn ->GetTransactionId(),LockMode::EXCLUSIVE);
-    while (true) {
-      lock_queue->cv_.wait(txn_latch);
-      if (lock_queue ->request_queue_.front().txn_id_ == txn ->GetTransactionId()) {
-        lock_queue ->request_queue_.pop_front();
-        break;
-      }
-    }
-  }
-  lock_queue ->rid_lock_state_ = RIDLockState::EXCLUSIVELOCKED;
-   */
-
   return true;
 }
 
@@ -128,10 +102,12 @@ auto LockManager::LockUpgrade(Transaction *txn, const RID &rid) -> bool {
   }
   if (txn ->GetState() == TransactionState::SHRINKING) {
     txn ->SetState(TransactionState::ABORTED);
+    throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::LOCK_ON_SHRINKING));
     return false;
   }
   if (!txn ->IsSharedLocked(rid)) {
     txn ->SetState(TransactionState::ABORTED);
+    throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::UPGRADE_CONFLICT));
     return false;
   }
   txn->GetSharedLockSet()->erase(rid);
@@ -158,7 +134,6 @@ auto LockManager::LockUpgrade(Transaction *txn, const RID &rid) -> bool {
     }
   }
 
-
   return true;
 }
 
@@ -181,15 +156,6 @@ auto LockManager::Unlock(Transaction *txn, const RID &rid) -> bool {
   lock_queue ->request_queue_.erase(pos);
   txn_latch.unlock();
   lock_queue ->cv_.notify_all();
-  /*
-  if (txn ->GetState() != TransactionState::ABORTED && !(lock_queue ->rid_lock_state_ == RIDLockState::SHARELOCKED && txn ->GetIsolationLevel() == IsolationLevel::READ_COMMITTED)) {
-    txn->SetState(TransactionState::SHRINKING);
-  }
-  lock_queue ->rid_lock_state_ = RIDLockState::NONLOCK;
-  txn_latch.unlock();
-  lock_queue ->cv_.notify_all();
-*/
-
 
   return true;
 }
