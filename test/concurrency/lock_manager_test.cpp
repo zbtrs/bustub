@@ -12,6 +12,16 @@
 
 namespace bustub {
 
+#define TEST_TIMEOUT_BEGIN                           \
+  std::promise<bool> promisedFinished;               \
+  auto futureResult = promisedFinished.get_future(); \
+                              std::thread([](std::promise<bool>& finished) {
+#define TEST_TIMEOUT_FAIL_END(X)                                                                  \
+  finished.set_value(true);                                                                       \
+  }, std::ref(promisedFinished)).detach();                                                        \
+  EXPECT_TRUE(futureResult.wait_for(std::chrono::milliseconds(X)) != std::future_status::timeout) \
+      << "Test Failed Due to Time Out";
+
 /*
  * This test is only a sanity check. Please do not rely on this test
  * to check the correctness.
@@ -31,8 +41,8 @@ void CheckTxnLockSize(Transaction *txn, size_t shared_size, size_t exclusive_siz
   EXPECT_EQ(txn->GetExclusiveLockSet()->size(), exclusive_size);
 }
 
-// Basic shared lock test under REPEATABLE_READ
-void BasicTest1() {
+// Basic shared lock test under READ_COMMITTED
+void BasicTest2() {
   LockManager lock_mgr{};
   TransactionManager txn_mgr{&lock_mgr};
 
@@ -42,7 +52,7 @@ void BasicTest1() {
   for (int i = 0; i < num_rids; i++) {
     RID rid{i, static_cast<uint32_t>(i)};
     rids.push_back(rid);
-    txns.push_back(txn_mgr.Begin());
+    txns.push_back(txn_mgr.Begin(nullptr, IsolationLevel::READ_COMMITTED));
     EXPECT_EQ(i, txns[i]->GetTransactionId());
   }
   // test
@@ -57,7 +67,7 @@ void BasicTest1() {
     for (const RID &rid : rids) {
       res = lock_mgr.Unlock(txns[txn_id], rid);
       EXPECT_TRUE(res);
-      CheckShrinking(txns[txn_id]);
+      CheckGrowing(txns[txn_id]);
     }
     txn_mgr.Commit(txns[txn_id]);
     CheckCommitted(txns[txn_id]);
@@ -77,7 +87,29 @@ void BasicTest1() {
     delete txns[i];
   }
 }
-TEST(LockManagerTest, DISABLED_BasicTest) { BasicTest1(); }
+
+
+// Correct case
+
+/****************************
+ * Basic Tests (15 pts)
+ ****************************/
+
+const size_t NUM_ITERS = 10;
+// TODO:modify this to check strongly
+
+/*
+ * Score: 5
+ * Description: Basic tests for LockShared and Unlock operations
+ * on small amount of rids.
+ */
+TEST(LockManagerTest, BasicTest) {
+  TEST_TIMEOUT_BEGIN
+  for (size_t i = 0; i < NUM_ITERS; i++) {
+    BasicTest2();
+  }
+  TEST_TIMEOUT_FAIL_END(1000 * 30)
+}
 
 void TwoPLTest() {
   LockManager lock_mgr{};
@@ -123,7 +155,7 @@ void TwoPLTest() {
 
   delete txn;
 }
-TEST(LockManagerTest, DISABLED_TwoPLTest) { TwoPLTest(); }
+TEST(LockManagerTest, TwoPLTest) { TwoPLTest(); }
 
 void UpgradeTest() {
   LockManager lock_mgr{};

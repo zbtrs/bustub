@@ -27,6 +27,8 @@
 
 namespace bustub {
 
+enum class RIDLockState { NONLOCK,SHARELOCKED,EXCLUSIVELOCKED };
+
 class TransactionManager;
 
 /**
@@ -51,6 +53,8 @@ class LockManager {
     std::condition_variable cv_;
     // txn_id of an upgrading transaction (if any)
     txn_id_t upgrading_ = INVALID_TXN_ID;
+
+    RIDLockState rid_lock_state_ = RIDLockState::NONLOCK;
   };
 
  public:
@@ -109,6 +113,7 @@ class LockManager {
 
   /** Lock table for lock requests. */
   std::unordered_map<RID, LockRequestQueue> lock_table_;
+
 };
 
 }  // namespace bustub

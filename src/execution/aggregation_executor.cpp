@@ -38,20 +38,6 @@ void AggregationExecutor::Init() {
 
 auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   while (aht_iterator_ != aht_.End()) {
-    /*
-std::vector<Value> values;
-auto aggregate_tuple = Tuple(aht_iterator_ .Val().aggregates_,plan_ ->OutputSchema());
-for (const auto group_by : plan_ ->GetGroupBys()) {
-  values.push_back(group_by ->Evaluate(&aggregate_tuple,plan_ ->OutputSchema()));
-}
-if (plan_ ->GetHaving() ->EvaluateAggregate(values,aht_iterator_ .Val().aggregates_).GetAs<bool>()) {
-  ++aht_iterator_;
-  *tuple = aggregate_tuple;
-  *rid = aggregate_tuple.GetRid();
-  return true;
-}
-++aht_iterator_;
- */
     auto temp_iter = aht_iterator_;
     ++aht_iterator_;
     if (plan_->GetHaving() != nullptr &&
