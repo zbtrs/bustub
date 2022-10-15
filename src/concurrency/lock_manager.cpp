@@ -23,8 +23,8 @@ auto LockManager::LockShared(Transaction *txn, const RID &rid) -> bool {
   }
   if (txn ->GetState() == TransactionState::SHRINKING || txn ->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
     txn ->SetState(TransactionState::ABORTED);
-    throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::LOCK_ON_SHRINKING));
-    //return false;
+    //throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::LOCK_ON_SHRINKING));
+    return false;
   }
   txn->GetSharedLockSet()->emplace(rid);
   txn ->SetState(TransactionState::GROWING);
@@ -37,12 +37,11 @@ auto LockManager::LockShared(Transaction *txn, const RID &rid) -> bool {
       break;
     }
   }
-  LockRequest new_lock_request(txn ->GetTransactionId(),LockMode::SHARED);
+  LockRequest new_lock_request(txn ->GetTransactionId(),LockMode::SHARED,txn);
   if (flag) {
     new_lock_request.granted_ = true;
     lock_queue ->request_queue_.push_back(new_lock_request);
   } else {
-    lock_queue ->request_queue_.push_back(new_lock_request);
     auto is_compatible = [&] {
       for (auto & lock_request : lock_queue ->request_queue_) {
         if (lock_request.txn_id_ == txn ->GetTransactionId()) {
@@ -55,7 +54,33 @@ auto LockManager::LockShared(Transaction *txn, const RID &rid) -> bool {
       return true;
     };
 
-    lock_queue ->cv_.wait(txn_latch,[&is_compatible,&txn] { return is_compatible() || txn ->GetState() == TransactionState::ABORTED; });
+    for (auto &lock_request : lock_queue ->request_queue_) {
+      if (lock_request.lock_mode_ == LockMode::EXCLUSIVE && lock_request.txn_id_ > txn ->GetTransactionId()) {
+        lock_request.txn_ ->SetState(TransactionState::ABORTED);
+      }
+    }
+    txn_latch.unlock();
+    lock_queue ->cv_.notify_all();
+    txn_latch.lock();
+    bool get_lock = true;
+    for (auto &lock_request : lock_queue ->request_queue_) {
+      if (lock_request.lock_mode_ == LockMode::EXCLUSIVE || !lock_request.granted_) {
+        get_lock = false;
+        break;
+      }
+    }
+    if (get_lock) {
+      new_lock_request.granted_ = true;
+      lock_queue->request_queue_.push_back(new_lock_request);
+
+      return true;
+    }
+
+    lock_queue ->request_queue_.push_back(new_lock_request);
+    lock_queue ->cv_.wait(txn_latch,[&is_compatible, &txn] { return txn ->GetState() == TransactionState::ABORTED || is_compatible(); });
+    if (txn ->GetState() == TransactionState::ABORTED) {
+      return false;
+    }
   }
 
   return true;
@@ -67,7 +92,7 @@ auto LockManager::LockExclusive(Transaction *txn, const RID &rid) -> bool {
   }
   if (txn ->GetState() == TransactionState::SHRINKING) {
     txn ->SetState(TransactionState::ABORTED);
-    throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::LOCK_ON_SHRINKING));
+    //throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::LOCK_ON_SHRINKING));
     return false;
   }
   txn->GetExclusiveLockSet()->emplace(rid);
@@ -76,11 +101,12 @@ auto LockManager::LockExclusive(Transaction *txn, const RID &rid) -> bool {
   auto *lock_queue = &lock_table_[rid];
 
   bool flag = lock_queue ->request_queue_.empty();
-  LockRequest new_lock_request(txn ->GetTransactionId(),LockMode::EXCLUSIVE);
+  LockRequest new_lock_request(txn ->GetTransactionId(),LockMode::EXCLUSIVE,txn);
   if (flag) {
     new_lock_request.granted_ = true;
     lock_queue ->request_queue_.push_back(new_lock_request);
   } else {
+    /*
     lock_queue ->request_queue_.push_back(new_lock_request);
     auto is_compatible = [&] {
       auto &lock_request = lock_queue ->request_queue_.front();
@@ -90,7 +116,36 @@ auto LockManager::LockExclusive(Transaction *txn, const RID &rid) -> bool {
       }
       return false;
     };
-    lock_queue ->cv_.wait(txn_latch,[&is_compatible,&txn] { return is_compatible() || txn ->GetState() == TransactionState::ABORTED; });
+    lock_queue ->cv_.wait(txn_latch,[&is_compatible,&txn] { return txn ->GetState() == TransactionState::ABORTED || is_compatible();  });
+    */
+    auto is_compatible = [&] {
+      auto &lock_request = lock_queue ->request_queue_.front();
+      if (lock_request.txn_id_ == txn ->GetTransactionId()) {
+        lock_request.granted_ = true;
+        return true;
+      }
+      return false;
+    };
+
+    for (auto &lock_request : lock_queue ->request_queue_) {
+      if (lock_request.txn_id_ > txn ->GetTransactionId()) {
+        lock_request.txn_ ->SetState(TransactionState::ABORTED);
+      }
+    }
+    txn_latch.unlock();
+    lock_queue ->cv_.notify_all();
+    txn_latch.lock();
+    if (lock_queue ->request_queue_.front().txn_id_ == txn ->GetTransactionId()) {
+      new_lock_request.granted_ = true;
+      lock_queue->request_queue_.push_back(new_lock_request);
+
+      return true;
+    }
+    lock_queue ->request_queue_.push_back(new_lock_request);
+    lock_queue ->cv_.wait(txn_latch,[&is_compatible, &txn] { return txn ->GetState() == TransactionState::ABORTED || is_compatible(); });
+    if (txn ->GetState() == TransactionState::ABORTED) {
+      return false;
+    }
   }
 
   return true;
@@ -102,12 +157,12 @@ auto LockManager::LockUpgrade(Transaction *txn, const RID &rid) -> bool {
   }
   if (txn ->GetState() == TransactionState::SHRINKING) {
     txn ->SetState(TransactionState::ABORTED);
-    throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::LOCK_ON_SHRINKING));
+    //throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::LOCK_ON_SHRINKING));
     return false;
   }
   if (!txn ->IsSharedLocked(rid)) {
     txn ->SetState(TransactionState::ABORTED);
-    throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::UPGRADE_CONFLICT));
+    //throw (TransactionAbortException(txn ->GetTransactionId(),AbortReason::UPGRADE_CONFLICT));
     return false;
   }
   txn->GetSharedLockSet()->erase(rid);
@@ -129,7 +184,10 @@ auto LockManager::LockUpgrade(Transaction *txn, const RID &rid) -> bool {
         }
         return false;
       };
-      lock_queue ->cv_.wait(txn_latch,[&is_compatible,&txn] { return is_compatible() || txn ->GetState() == TransactionState::ABORTED; });
+      lock_queue ->cv_.wait(txn_latch,[&is_compatible,&txn] { return txn ->GetState() == TransactionState::ABORTED || is_compatible();  });
+      if (txn ->GetState() == TransactionState::ABORTED) {
+        return false;
+      }
       break;
     }
   }
@@ -146,7 +204,7 @@ auto LockManager::Unlock(Transaction *txn, const RID &rid) -> bool {
   for (auto it = lock_queue ->request_queue_.begin(); it != lock_queue ->request_queue_.end(); ++it) {
     auto lock_request = *it;
     if (lock_request.txn_id_ == txn ->GetTransactionId()) {
-      if (txn ->GetState() != TransactionState::ABORTED && !(lock_request.lock_mode_ == LockMode::SHARED && txn ->GetIsolationLevel() == IsolationLevel::READ_COMMITTED)) {
+      if (txn ->GetState() != TransactionState::ABORTED && txn ->GetState() != TransactionState::COMMITTED && !(lock_request.lock_mode_ == LockMode::SHARED && txn ->GetIsolationLevel() == IsolationLevel::READ_COMMITTED)) {
         txn->SetState(TransactionState::SHRINKING);
       }
       pos = it;
